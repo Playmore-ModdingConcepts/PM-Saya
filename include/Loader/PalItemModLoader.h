@@ -30,9 +30,9 @@ namespace Palworld {
 
 		void EditTranslations(const RC::Unreal::FName& ItemId, const nlohmann::json& Data);
 
-		UPalStaticItemDataAsset* m_itemDataAsset;
-		UECustom::UDataTable* m_itemRecipeTable;
-		UECustom::UDataTable* m_nameTranslationTable;
-		UECustom::UDataTable* m_descriptionTranslationTable;
+		UPalStaticItemDataAsset* m_itemDataAsset{};
+		UECustom::UDataTable* m_itemRecipeTable{};
+		UECustom::UDataTable* m_nameTranslationTable{};
+		UECustom::UDataTable* m_descriptionTranslationTable{};
 	};
 }
