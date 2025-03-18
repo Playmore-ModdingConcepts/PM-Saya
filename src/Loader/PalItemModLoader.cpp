@@ -26,14 +26,14 @@ namespace Palworld {
 		m_itemDataAsset = UObjectGlobals::StaticFindObject<UPalStaticItemDataAsset*>(nullptr, nullptr,
 			STR("/Game/Pal/DataAsset/Item/DA_StaticItemDataAsset.DA_StaticItemDataAsset"));
 
-		m_itemRecipeTable = UObjectGlobals::StaticFindObject<UECustom::UDataTable*>(nullptr, nullptr,
-			STR("/Game/Pal/DataTable/Item/DT_ItemRecipeDataTable.DT_ItemRecipeDataTable"));
+        m_itemRecipeTable = UObjectGlobals::StaticFindObject<UECustom::UDataTable*>(nullptr, nullptr,
+            STR("/Game/Pal/DataTable/Item/DT_ItemRecipeDataTable.DT_ItemRecipeDataTable"));
 
-		m_nameTranslationTable = UObjectGlobals::StaticFindObject<UECustom::UDataTable*>(nullptr, nullptr,
-			STR("/Game/Pal/DataTable/Text/DT_ItemNameText.DT_ItemNameText"));
+        m_nameTranslationTable = UObjectGlobals::StaticFindObject<UECustom::UDataTable*>(nullptr, nullptr,
+            STR("/Game/Pal/DataTable/Text/DT_ItemNameText.DT_ItemNameText"));
 
-		m_descriptionTranslationTable = UObjectGlobals::StaticFindObject<UECustom::UDataTable*>(nullptr, nullptr,
-			STR("/Game/Pal/DataTable/Text/DT_ItemDescriptionText.DT_ItemDescriptionText"));
+        m_descriptionTranslationTable = UObjectGlobals::StaticFindObject<UECustom::UDataTable*>(nullptr, nullptr,
+            STR("/Game/Pal/DataTable/Text/DT_ItemDescriptionText.DT_ItemDescriptionText"));
 	}
 
 	void PalItemModLoader::Load(const nlohmann::json& Data)
@@ -223,6 +223,8 @@ namespace Palworld {
 		}
 
 		m_itemRecipeTable->AddRow(ItemId, *reinterpret_cast<UECustom::FTableRowBase*>(ItemRecipeData));
+
+        PS::Log<LogLevel::Normal>(STR("Added new Recipe for Item '{}'.\n"), ItemId.ToString());
 	}
 
 	void PalItemModLoader::EditRecipe(const RC::Unreal::FName& ItemId, const nlohmann::json& Recipe)
@@ -250,6 +252,8 @@ namespace Palworld {
 				DataTableHelper::CopyJsonValueToTableRow(RecipeRow, Property, property_value);
 			}
 		}
+
+        PS::Log<LogLevel::Normal>(STR("Modified Recipe for Item '{}'.\n"), ItemId.ToString());
 	}
 
 	void PalItemModLoader::AddTranslations(const RC::Unreal::FName& ItemId, const nlohmann::json& Data)
