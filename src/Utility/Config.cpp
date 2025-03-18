@@ -5,6 +5,7 @@
 #include <Helpers/String.hpp>
 #include "Utility/Config.h"
 #include "Utility/Logging.h"
+#include "UE4SSProgram.hpp"
 
 namespace fs = std::filesystem;
 
@@ -19,11 +20,7 @@ namespace PS {
         {
             m_config = std::make_unique<PSConfig>();
 
-            fs::path cwd = fs::current_path() / "Mods" / "PalSchema" / "config";
-            if (!fs::exists(cwd))
-            {
-                cwd = fs::current_path() / "ue4ss" / "Mods" / "PalSchema" / "config";
-            }
+            auto cwd = fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PalSchema" / "config";
 
             if (!fs::exists(cwd))
             {
@@ -36,7 +33,6 @@ namespace PS {
             nlohmann::ordered_json data = {};
             if (f.fail()) {
                 data["languageOverride"] = "";
-                data["enableExperimentalBlueprintSupport"] = false;
                 std::ofstream out_file(cwd / "config.json");
                 out_file << data.dump(4);
                 out_file.close();
@@ -60,22 +56,6 @@ namespace PS {
                     ShouldResave = true;
                 }
                 m_config->m_languageOverride = data["languageOverride"].get<std::string>();
-            }
-
-            if (!data.contains("enableExperimentalBlueprintSupport"))
-            {
-                data["enableExperimentalBlueprintSupport"] = false;
-                ShouldResave = true;
-            }
-            else
-            {
-                if (!data.at("enableExperimentalBlueprintSupport").is_boolean())
-                {
-                    PS::Log<RC::LogLevel::Error>(STR("enableExperimentalBlueprintSupport in config.json wasn't a bool, resetting to default.\n"));
-                    data["enableExperimentalBlueprintSupport"] = false;
-                    ShouldResave = true;
-                }
-                m_config->m_enableExperimentalBlueprintSupport = data["enableExperimentalBlueprintSupport"].get<bool>();
             }
 
             if (ShouldResave)
@@ -103,17 +83,5 @@ namespace PS {
         PS::Log<RC::LogLevel::Error>(STR("PalSchema Config must be initialized first before accessing GetLanguageOverride!"));
 
         return "";
-    }
-
-    bool PSConfig::IsExperimentalBlueprintSupportEnabled()
-    {
-        if (m_config)
-        {
-            return m_config->m_enableExperimentalBlueprintSupport;
-        }
-
-        PS::Log<RC::LogLevel::Error>(STR("PalSchema Config must be initialized first before accessing IsExperimentalBlueprintSupportEnabled!"));
-
-        return false;
     }
 }
