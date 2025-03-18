@@ -1,13 +1,16 @@
 #include <fstream>
 #include <filesystem>
 #include "Unreal/UClass.hpp"
+#include "Unreal/UFunction.hpp"
 #include "Unreal/Hooks.hpp"
 #include "Helpers/String.hpp"
 #include "Loader/PalMainLoader.h"
 #include "Utility/Config.h"
 #include "Utility/Logging.h"
 #include "SDK/Classes/UDataTable.h"
+#include "SDK/Classes/PalUtility.h"
 #include "SDK/PalSignatures.h"
+#include "UE4SSProgram.hpp"
 
 using namespace RC;
 using namespace RC::Unreal;
@@ -15,6 +18,30 @@ using namespace RC::Unreal;
 namespace fs = std::filesystem;
 
 namespace Palworld {
+    PalMainLoader::PalMainLoader() {}
+
+    PalMainLoader::~PalMainLoader()
+    {
+        auto expected1 = HandleDataTableChanged_Hook.disable();
+        HandleDataTableChanged_Hook = {};
+
+        auto expected2 = PostLoadDefaultObject_Hook.disable();
+        PostLoadDefaultObject_Hook = {};
+
+        auto expected3 = InitGameState_Hook.disable();
+        InitGameState_Hook = {};
+
+        HandleDataTableChangedCallbacks.clear();
+        PostLoadDefaultObjectCallbacks.clear();
+        InitGameStateCallbacks.clear();
+
+        if (m_loadBrowserFunction)
+        {
+            m_loadBrowserFunction->UnregisterHook(m_loadBrowserFunctionCallbackId);
+            m_loadBrowserFunction = nullptr;
+        }
+    }
+
     void PalMainLoader::PreInitialize()
     {
         IterateModsFolder([&](const fs::directory_entry& modFolder) {
@@ -22,69 +49,113 @@ namespace Palworld {
             LoadRawTables(rawFolder);
         });
 
-        if (PS::PSConfig::IsExperimentalBlueprintSupportEnabled())
+        auto PostLoadDefaultObjectAddress = Palworld::SignatureManager::GetSignature("UBlueprintGeneratedClass::PostLoadDefaultObject");
+        if (PostLoadDefaultObjectAddress)
         {
-            PS::Log<RC::LogLevel::Normal>(STR("Experimental Blueprint Support is enabled.\n"));
-            BlueprintModLoader.Initialize();
+            PostLoadDefaultObject_Hook = safetyhook::create_inline(PostLoadDefaultObjectAddress,
+                reinterpret_cast<void*>(PostLoadDefaultObject));
+
+            PostLoadDefaultObjectCallbacks.push_back([&](UClass* BPGeneratedClass, UObject* DefaultObject) {
+                OnPostLoadDefaultObject(BPGeneratedClass, DefaultObject);
+                BlueprintModLoader.OnPostLoadDefaultObject(BPGeneratedClass, DefaultObject);
+            });
         }
 
-        HandleDataTableChangedCallbacks.push_back([&](UECustom::UDataTable* Table) {
-            RawTableLoader.Apply(Table);
-        });
+        auto InitGameState_Address = Palworld::SignatureManager::GetSignature("AGameModeBase::InitGameState");
+        if (InitGameState_Address)
+        {
+            InitGameState_Hook = safetyhook::create_inline(InitGameState_Address,
+                reinterpret_cast<void*>(InitGameState));
+
+            InitGameStateCallbacks.push_back([&](AGameModeBase* Instance) {
+                LanguageModLoader.Initialize();
+                MonsterModLoader.Initialize();
+                HumanModLoader.Initialize();
+                AppearanceModLoader.Initialize();
+                BuildingModLoader.Initialize();
+                ItemModLoader.Initialize();
+                SkinModLoader.Initialize();
+                RawTableLoader.Initialize();
+
+                Load();
+            });
+        }
 
         auto HandleDataTableChanged_Address = Palworld::SignatureManager::GetSignature("UDataTable::HandleDataTableChanged");
         if (HandleDataTableChanged_Address)
         {
             HandleDataTableChanged_Hook = safetyhook::create_inline(reinterpret_cast<void*>(HandleDataTableChanged_Address),
                 HandleDataTableChanged);
+
+            HandleDataTableChangedCallbacks.push_back([&](UECustom::UDataTable* Table) {
+                RawTableLoader.Apply(Table);
+            });
         }
     }
 
     void PalMainLoader::Initialize()
 	{
-		LanguageModLoader.Initialize();
-		MonsterModLoader.Initialize();
-		HumanModLoader.Initialize();
-		ItemModLoader.Initialize();
-		SkinModLoader.Initialize();
-		AppearanceModLoader.Initialize();
-		BuildingModLoader.Initialize();
-		RawTableLoader.Initialize();
+        m_loadBrowserFunction = UObjectGlobals::StaticFindObject<UFunction*>(nullptr, nullptr, STR("/Script/WebBrowserWidget.WebBrowser:LoadURL"));
+        if (m_loadBrowserFunction)
+        {
+            m_loadBrowserFunctionCallbackId = m_loadBrowserFunction->RegisterPostHook([this](UnrealScriptFunctionCallableContext& Context, void* CustomData) {
+                if (m_loadBrowserFunction)
+                {
+                    m_loadBrowserFunction->UnregisterHook(m_loadBrowserFunctionCallbackId);
+                    m_loadBrowserFunction = nullptr;
+                }
 
-		Load();
+                DisplayErrorPopup();
+            });
+        }
 	}
 
     void PalMainLoader::Load()
 	{
+        std::vector<fs::path::string_type> listOfModsWithErrors;
+
         IterateModsFolder([&](const fs::directory_entry& modFolder) {
             auto& modsPath = modFolder.path();
+            auto modName = modsPath.stem().native();
 
-            PS::Log<RC::LogLevel::Normal>(STR("Loading mod: {}\n"), modsPath.stem().native());
-
-            auto palFolder = modsPath / "pals";
-            LoadPalMods(palFolder);
-
-            auto itemsFolder = modsPath / "items";
-            LoadItemMods(itemsFolder);
-
-            auto skinsFolder = modsPath / "skins";
-            LoadSkinMods(skinsFolder);
-
-            auto appearanceFolder = modsPath / "appearance";
-            LoadAppearanceMods(appearanceFolder);
-
-            auto buildingsFolder = modsPath / "buildings";
-            LoadBuildingMods(buildingsFolder);
-
-            auto translationsFolder = modsPath / "translations";
-            LoadLanguageMods(translationsFolder);
-
-            if (PS::PSConfig::IsExperimentalBlueprintSupportEnabled())
+            try
             {
+                PS::Log<RC::LogLevel::Normal>(STR("Loading mod: {}\n"), modName);
+                
+                auto palFolder = modsPath / "pals";
+                LoadPalMods(palFolder);
+
+                auto appearanceFolder = modsPath / "appearance";
+                LoadAppearanceMods(appearanceFolder);
+
+                auto buildingsFolder = modsPath / "buildings";
+                LoadBuildingMods(buildingsFolder);
+
+                auto itemsFolder = modsPath / "items";
+                LoadItemMods(itemsFolder);
+
+                auto skinsFolder = modsPath / "skins";
+                LoadSkinMods(skinsFolder);
+
+                auto translationsFolder = modsPath / "translations";
+                LoadLanguageMods(translationsFolder);
+
                 auto blueprintFolder = modsPath / "blueprints";
                 LoadBlueprintMods(blueprintFolder);
             }
+            catch (const std::exception&)
+            {
+                listOfModsWithErrors.push_back(modName);
+            }
         });
+
+        auto errorCount = listOfModsWithErrors.size();
+        if (errorCount > 0)
+        {
+            PS::Log<LogLevel::Warning>(STR("{} mods had errors\n"), errorCount);
+        }
+
+        m_errorCount = errorCount;
 	}
 
 	void PalMainLoader::LoadLanguageMods(const std::filesystem::path& path)
@@ -112,20 +183,6 @@ namespace Palworld {
 	{
         ParseJsonFileInPath(path, [&](nlohmann::json data) {
             MonsterModLoader.Load(data);
-        });
-	}
-
-	void PalMainLoader::LoadItemMods(const std::filesystem::path& path)
-	{
-        ParseJsonFileInPath(path, [&](nlohmann::json data) {
-            ItemModLoader.Load(data);
-        });
-	}
-
-	void PalMainLoader::LoadSkinMods(const std::filesystem::path& path)
-	{
-        ParseJsonFileInPath(path, [&](nlohmann::json data) {
-            SkinModLoader.Load(data);
         });
 	}
 
@@ -157,16 +214,23 @@ namespace Palworld {
         });
     }
 
+    void PalMainLoader::LoadItemMods(const std::filesystem::path& path)
+    {
+        ParseJsonFileInPath(path, [&](nlohmann::json data) {
+            ItemModLoader.Load(data);
+        });
+    }
+
+    void PalMainLoader::LoadSkinMods(const std::filesystem::path& path)
+    {
+        ParseJsonFileInPath(path, [&](nlohmann::json data) {
+            SkinModLoader.Load(data);
+        });
+    }
+
     void PalMainLoader::IterateModsFolder(const std::function<void(const std::filesystem::directory_entry&)>& callback)
     {
-        // For backwards compatibility with old UE4SS path
-        fs::path cwd = fs::current_path() / "Mods" / "PalSchema" / "mods";
-
-        if (!fs::exists(cwd))
-        {
-            cwd = fs::current_path() / "ue4ss" / "Mods" / "PalSchema" / "mods";
-        }
-
+        auto cwd = fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PalSchema" / "mods";
         if (fs::exists(cwd))
         {
             for (const auto& entry : fs::directory_iterator(cwd)) {
@@ -208,7 +272,41 @@ namespace Palworld {
         }
     }
 
-    void PalMainLoader::HandleDataTableChanged(UECustom::UDataTable* This, RC::Unreal::FName param_1)
+    void PalMainLoader::OnPostLoadDefaultObject(UClass* This, UObject* DefaultObject)
+    {
+        static auto NAME_WBP_Title = FName(STR("WBP_Title_C"), FNAME_Add);
+        if (This->GetNamePrivate() == NAME_WBP_Title)
+        {
+            static bool HasHookedOnce = false;
+            if (HasHookedOnce) return;
+
+            HasHookedOnce = true;
+
+            m_titleCallbackIds = UObjectGlobals::RegisterHook(STR("/Game/Pal/Blueprint/UI/Title/WBP_TItle.WBP_TItle_C:OnSetup"),
+            [](UnrealScriptFunctionCallableContext& Context, void* CustomData) {},
+            [this](UnrealScriptFunctionCallableContext& Context, void* CustomData) {
+                DisplayErrorPopup();
+                UObjectGlobals::UnregisterHook(STR("/Game/Pal/Blueprint/UI/Title/WBP_TItle.WBP_TItle_C:OnSetup"), m_titleCallbackIds);
+            },
+            nullptr);
+        }
+    }
+
+    void PalMainLoader::DisplayErrorPopup()
+    {
+        if (m_errorCount > 0)
+        {
+            auto WorldContextObject = UObjectGlobals::FindFirstOf(STR("Actor"));
+            if (WorldContextObject)
+            {
+                auto ErrorMessage = std::format(STR("<Yellow_20B>Pal Schema</>\r\n{} mod{} had errors.\r\n\r\nPlease check <NumBlue_12>UE4SS.log</> for detailed information."),
+                    m_errorCount, m_errorCount > 1 ? STR("s") : STR(""));
+                UPalUtility::Alert(WorldContextObject, FText(ErrorMessage));
+            }
+        }
+    }
+
+    void PalMainLoader::HandleDataTableChanged(UECustom::UDataTable* This, FName param_1)
     {
         HandleDataTableChanged_Hook.call(This, param_1);
 
@@ -219,5 +317,28 @@ namespace Palworld {
         {
             Callback(This);
         }
+    }
+
+    void PalMainLoader::PostLoadDefaultObject(UClass* This, UObject* DefaultObject)
+    {
+        PostLoadDefaultObject_Hook.call(This, DefaultObject);
+
+        for (auto& Callback : PostLoadDefaultObjectCallbacks)
+        {
+            Callback(This, DefaultObject);
+        }
+    }
+
+    void PalMainLoader::InitGameState(AGameModeBase* This)
+    {
+        InitGameState_Hook.call(This);
+
+        for (auto& Callback : InitGameStateCallbacks)
+        {
+            Callback(This);
+        }
+
+        auto expected = InitGameState_Hook.disable();
+        InitGameState_Hook = {};
     }
 }

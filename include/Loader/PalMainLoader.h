@@ -19,6 +19,10 @@ namespace UECustom {
 namespace Palworld {
 	class PalMainLoader {
 	public:
+        PalMainLoader();
+
+        ~PalMainLoader();
+
 		void PreInitialize();
 
 		void Initialize();
@@ -33,15 +37,16 @@ namespace Palworld {
 		PalRawTableLoader RawTableLoader;
 		PalBlueprintModLoader BlueprintModLoader;
 
+        int m_errorCount = 0;
+        RC::Unreal::UFunction* m_loadBrowserFunction{};
+        RC::Unreal::CallbackId m_loadBrowserFunctionCallbackId{};
+        std::pair<int, int> m_titleCallbackIds{};
+
 		void Load();
 
 		void LoadLanguageMods(const std::filesystem::path& path);
 
 		void LoadPalMods(const std::filesystem::path& path);
-
-		void LoadItemMods(const std::filesystem::path& path);
-
-		void LoadSkinMods(const std::filesystem::path& path);
 
 		void LoadBuildingMods(const std::filesystem::path& path);
 
@@ -51,14 +56,29 @@ namespace Palworld {
 
 		void LoadAppearanceMods(const std::filesystem::path& path);
 
+        void LoadItemMods(const std::filesystem::path& path);
+
+        void LoadSkinMods(const std::filesystem::path& path);
+
         void IterateModsFolder(const std::function<void(const std::filesystem::directory_entry&)>& callback);
 
         void ParseJsonFileInPath(const std::filesystem::path& path, const std::function<void(const nlohmann::json&)>& callback);
+
+        void OnPostLoadDefaultObject(RC::Unreal::UClass* This, RC::Unreal::UObject* DefaultObject);
+
+        void DisplayErrorPopup();
     private:
         static void HandleDataTableChanged(UECustom::UDataTable* This, RC::Unreal::FName param_1);
 
-        static inline std::vector<std::function<void(UECustom::UDataTable*)>> HandleDataTableChangedCallbacks;
+        static void PostLoadDefaultObject(RC::Unreal::UClass* This, RC::Unreal::UObject* DefaultObject);
 
+        static void InitGameState(RC::Unreal::AGameModeBase* This);
+
+        static inline std::vector<std::function<void(UECustom::UDataTable*)>> HandleDataTableChangedCallbacks;
+        static inline std::vector<std::function<void(RC::Unreal::UClass*, RC::Unreal::UObject*)>> PostLoadDefaultObjectCallbacks;
+        static inline std::vector<std::function<void(RC::Unreal::AGameModeBase*)>> InitGameStateCallbacks;
         static inline SafetyHookInline HandleDataTableChanged_Hook;
+        static inline SafetyHookInline PostLoadDefaultObject_Hook;
+        static inline SafetyHookInline InitGameState_Hook;
 	};
 }
