@@ -17,17 +17,15 @@ namespace Palworld {
         virtual void Load(const nlohmann::json& Data) override final;
 
         void Initialize();
-    private:
-        static inline std::unordered_map<RC::Unreal::FName, std::vector<PalBlueprintMod>> BPModRegistry;
 
-        static std::vector<PalBlueprintMod>& GetModsForBlueprint(const RC::Unreal::FName& Name);
+        void OnPostLoadDefaultObject(RC::Unreal::UClass* This, RC::Unreal::UObject* DefaultObject);
+    private:
+        std::unordered_map<RC::Unreal::FName, std::vector<PalBlueprintMod>> BPModRegistry;
+
+        std::vector<PalBlueprintMod>& GetModsForBlueprint(const RC::Unreal::FName& Name);
         
-        static void ApplyMod(const PalBlueprintMod& BPMod, RC::Unreal::UObject* Object);
+        void ApplyMod(const PalBlueprintMod& BPMod, RC::Unreal::UObject* Object);
 
-        static void ApplyMod(const nlohmann::json& Data, RC::Unreal::UObject* Object);
-    private:
-        static void PostLoadDefaultObject(RC::Unreal::UClass* This, RC::Unreal::UObject* DefaultObject);
-
-        static inline SafetyHookInline PostLoadDefaultObject_Hook;
+        void ApplyMod(const nlohmann::json& Data, RC::Unreal::UObject* Object);
     };
 }
