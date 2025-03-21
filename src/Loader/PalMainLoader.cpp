@@ -268,6 +268,7 @@ namespace Palworld {
             catch (const std::exception& e)
             {
                 PS::Log<RC::LogLevel::Error>(STR("Failed parsing mod file {} - {}.\n"), RC::to_generic_string(file.path().native()), RC::to_generic_string(e.what()));
+                throw std::runtime_error(e.what());
             }
         }
     }
