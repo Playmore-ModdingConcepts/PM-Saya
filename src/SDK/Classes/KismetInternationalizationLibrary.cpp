@@ -9,6 +9,11 @@ namespace Palworld {
 	{
 		static auto Function = UObjectGlobals::StaticFindObject<UFunction*>(nullptr, nullptr, TEXT("/Script/Engine.KismetInternationalizationLibrary:GetCurrentLanguage"));
 
+        if (!Function)
+        {
+            return FString{};
+        }
+
 		struct {
 			FString ReturnValue;
 		}params;

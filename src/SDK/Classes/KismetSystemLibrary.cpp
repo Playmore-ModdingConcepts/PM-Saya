@@ -1,5 +1,6 @@
 #include "SDK/Classes/KismetSystemLibrary.h"
 #include "Unreal/UFunction.hpp"
+#include "Utility/Logging.h"
 
 using namespace RC;
 using namespace RC::Unreal;
@@ -8,6 +9,12 @@ namespace UECustom {
 	FSoftObjectPath UKismetSystemLibrary::MakeSoftObjectPath(const FString& Path)
 	{
 		static auto Function = UObjectGlobals::StaticFindObject<UFunction*>(nullptr, nullptr, TEXT("/Script/Engine.KismetSystemLibrary:MakeSoftObjectPath"));
+
+        if (!Function)
+        {
+            PS::Log<LogLevel::Verbose>(STR("Function /Script/Engine.KismetSystemLibrary:MakeSoftObjectPath was invalid.\n"));
+            return {};
+        }
 
 		struct {
 			FString Path;
@@ -24,6 +31,12 @@ namespace UECustom {
     RC::Unreal::UObject* UKismetSystemLibrary::LoadAsset_Blocking(UECustom::TSoftObjectPtr<UObject> Asset)
     {
         static auto Function = UObjectGlobals::StaticFindObject<UFunction*>(nullptr, nullptr, TEXT("/Script/Engine.KismetSystemLibrary:LoadAsset_Blocking"));
+
+        if (!Function)
+        {
+            PS::Log<LogLevel::Verbose>(STR("Function /Script/Engine.KismetSystemLibrary:LoadAsset_Blocking was invalid.\n"));
+            return nullptr;
+        }
 
         struct {
             UECustom::TSoftObjectPtr<UObject> Asset;
