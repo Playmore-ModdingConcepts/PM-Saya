@@ -18,9 +18,13 @@ public:
     PalSchema() : CppUserModBase()
     {
         ModName = STR("PalSchema");
-        ModVersion = STR("0.2.1-beta");
+        ModVersion = STR("0.3.0-beta");
         ModDescription = STR("Allows modifying of Palworld's DataTables and DataAssets dynamically.");
         ModAuthors = STR("Okaetsu");
+
+        PS::PSConfig::Load();
+        Palworld::SignatureManager::Initialize();
+        MainLoader.PreInitialize();
 
         PS::Log<RC::LogLevel::Verbose>(STR("{} v{} by {} loaded.\n"), ModName, ModVersion, ModAuthors);
     }
@@ -39,18 +43,7 @@ public:
 
     auto on_unreal_init() -> void override
     {
-        PS::PSConfig::Load();
-
-        Palworld::SignatureManager::Initialize();
-
-        MainLoader.PreInitialize();
-
-        static bool HasInitialized = false;
-        Unreal::Hook::RegisterProcessEventPostCallback([&](UObject* Context, UFunction* Function, void* Parms) {
-            if (HasInitialized) return;
-            HasInitialized = true;
-            MainLoader.Initialize();
-        });
+        MainLoader.Initialize();
     }
 private:
     Palworld::PalMainLoader MainLoader;
