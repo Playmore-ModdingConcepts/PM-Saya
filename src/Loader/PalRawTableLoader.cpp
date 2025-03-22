@@ -36,6 +36,7 @@ namespace Palworld {
         {
             auto SuccessfulModifications = 0;
             auto SuccessfulAdditions = 0;
+            auto SuccessfulDeletions = 0;
             auto ErrorCount = 0;
 
             for (auto& Data : It->second)
@@ -49,23 +50,31 @@ namespace Palworld {
                         auto Row = Table->FindRowUnchecked(RowKey);
                         if (Row)
                         {
-                            try
+                            if (row_data.is_null())
                             {
-                                for (auto Property : RowStruct->ForEachPropertyInChain())
-                                {
-                                    auto PropertyName = RC::to_string(Property->GetName());
-                                    if (row_data.contains(PropertyName))
-                                    {
-                                        DataTableHelper::CopyJsonValueToTableRow(Row, Property, row_data.at(PropertyName));
-                                    }
-                                }
-
-                                SuccessfulModifications++;
+                                Table->RemoveRow(RowKey);
+                                SuccessfulDeletions++;
                             }
-                            catch (const std::exception& e)
+                            else
                             {
-                                ErrorCount++;
-                                PS::Log<LogLevel::Error>(STR("Failed to modify Row '{}' in {}: {}\n"), RowKey.ToString(), Name, RC::to_generic_string(e.what()));
+                                try
+                                {
+                                    for (auto Property : RowStruct->ForEachPropertyInChain())
+                                    {
+                                        auto PropertyName = RC::to_string(Property->GetName());
+                                        if (row_data.contains(PropertyName))
+                                        {
+                                            DataTableHelper::CopyJsonValueToTableRow(Row, Property, row_data.at(PropertyName));
+                                        }
+                                    }
+
+                                    SuccessfulModifications++;
+                                }
+                                catch (const std::exception& e)
+                                {
+                                    ErrorCount++;
+                                    PS::Log<LogLevel::Error>(STR("Failed to modify Row '{}' in {}: {}\n"), RowKey.ToString(), Name, RC::to_generic_string(e.what()));
+                                }
                             }
                         }
                         else
@@ -123,8 +132,8 @@ namespace Palworld {
                 }
             }
 
-            PS::Log<LogLevel::Normal>(STR("{}: {} rows updated, {} rows added, {} error{}.\n"), 
-                                      Name, SuccessfulModifications, SuccessfulAdditions, ErrorCount, ErrorCount > 1 || ErrorCount == 0 ? STR("s") : STR(""));
+            PS::Log<LogLevel::Normal>(STR("{}: {} rows updated, {} rows added, {} rows deleted, {} error{}.\n"), 
+                                      Name, SuccessfulModifications, SuccessfulAdditions, SuccessfulDeletions, ErrorCount, ErrorCount > 1 || ErrorCount == 0 ? STR("s") : STR(""));
         }
     }
 

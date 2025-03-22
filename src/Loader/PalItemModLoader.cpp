@@ -43,8 +43,16 @@ namespace Palworld {
 			auto ItemId = FName(RC::to_generic_string(Key), FNAME_Add);
 			if (m_itemDataAsset->StaticItemDataMap.Contains(ItemId))
 			{
-				auto Row = m_itemDataAsset->StaticItemDataMap.FindRef(ItemId);
-				Edit(ItemId, Row, Value);
+                if (Value.is_null())
+                {
+                    m_itemDataAsset->StaticItemDataMap.Remove(ItemId);
+                    PS::Log<RC::LogLevel::Normal>(STR("Deleted Item '{}'\n"), ItemId.ToString());
+                }
+                else
+                {
+                    auto Row = m_itemDataAsset->StaticItemDataMap.FindRef(ItemId);
+                    Edit(ItemId, Row, Value);
+                }
 			}
 			else
 			{
