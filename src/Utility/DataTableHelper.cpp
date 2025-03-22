@@ -24,7 +24,6 @@
 #include "SDK/Classes/Texture2D.h"
 #include "SDK/Classes/TSoftClassPtr.h"
 #include "SDK/Structs/FLinearColor.h"
-#include <SDK/Classes/Custom/UObjectGlobals.h>
 #include "SDK/Classes/KismetSystemLibrary.h"
 
 using namespace RC;
@@ -244,7 +243,7 @@ void Palworld::DataTableHelper::CopyJsonValueToTableRow(void* TableRow, RC::Unre
 	}
 	else if (auto ArrayProperty = CastField<FArrayProperty>(Property))
 	{
-		if (!Value.is_object()) throw std::runtime_error(std::format("Property {} must be an object", RC::to_string(PropertyName)));
+		if (!Value.is_object() && !Value.is_array()) throw std::runtime_error(std::format("Property {} must be an object or array", RC::to_string(PropertyName)));
 		auto ParsedValue = Value.get<nlohmann::json>();
 
 		auto ArrayContainer = ArrayProperty->ContainerPtrToValuePtr<void>(TableRow);
@@ -259,40 +258,64 @@ void Palworld::DataTableHelper::CopyJsonValueToTableRow(void* TableRow, RC::Unre
 		auto ElementSize = InnerProperty->GetElementSize();
 		auto ElementAlignment = InnerProperty->GetMinAlignment();
 
-		if (Value.contains("Action"))
-		{
-			auto Action = Value.at("Action").get<std::string>();
-			if (Action == "Clear")
-			{
-				for (int32 Index = 0; Index < ScriptArray->Num(); ++Index)
-				{
-					void* ElementPtr = static_cast<uint8*>(ScriptArray->GetData()) + Index * ElementSize;
-					InnerProperty->DestroyValue(ElementPtr);
-				}
+        if (Value.is_object())
+        {
+            if (Value.contains("Action"))
+            {
+                auto Action = Value.at("Action").get<std::string>();
+                if (Action == "Clear")
+                {
+                    for (int32 Index = 0; Index < ScriptArray->Num(); ++Index)
+                    {
+                        void* ElementPtr = static_cast<uint8*>(ScriptArray->GetData()) + Index * ElementSize;
+                        InnerProperty->DestroyValue(ElementPtr);
+                    }
 
-				ScriptArray->Empty(0, ElementSize, ElementAlignment);
-			}
-		}
+                    ScriptArray->Empty(0, ElementSize, ElementAlignment);
+                }
+            }
 
-		if (Value.contains("Items"))
-		{
-			if (!Value.at("Items").is_array())
-			{
-				throw std::runtime_error(std::format("Field Items must be an array"));
-			}
+            if (Value.contains("Items"))
+            {
+                if (!Value.at("Items").is_array())
+                {
+                    throw std::runtime_error(std::format("Field Items must be an array"));
+                }
 
-			auto Items = Value.at("Items").get<nlohmann::json::array_t>();
-			auto NumItems = Items.size();
+                auto Items = Value.at("Items").get<nlohmann::json::array_t>();
+                auto NumItems = Items.size();
 
-			int32 FirstIndex = ScriptArray->Add(NumItems, ElementSize, ElementAlignment);
-			uint8* DataPtr = static_cast<uint8*>(ScriptArray->GetData());
-			for (int32 i = 0; i < NumItems; ++i)
-			{
-				void* NewElementPtr = DataPtr + (FirstIndex + i) * ElementSize;
-				InnerProperty->InitializeValue(NewElementPtr);
-				CopyJsonValueToTableRow(NewElementPtr, InnerProperty, Items.at(i));
-			}
-		}
+                int32 FirstIndex = ScriptArray->Add(NumItems, ElementSize, ElementAlignment);
+                uint8* DataPtr = static_cast<uint8*>(ScriptArray->GetData());
+                for (int32 i = 0; i < NumItems; ++i)
+                {
+                    void* NewElementPtr = DataPtr + (FirstIndex + i) * ElementSize;
+                    InnerProperty->InitializeValue(NewElementPtr);
+                    CopyJsonValueToTableRow(NewElementPtr, InnerProperty, Items.at(i));
+                }
+            }
+        }
+        else if (Value.is_array())
+        {
+            auto Items = Value.get<nlohmann::json::array_t>();
+            auto NumItems = Items.size();
+
+            for (int32 Index = 0; Index < ScriptArray->Num(); ++Index)
+            {
+                void* ElementPtr = static_cast<uint8*>(ScriptArray->GetData()) + Index * ElementSize;
+                InnerProperty->DestroyValue(ElementPtr);
+            }
+            ScriptArray->Empty(0, ElementSize, ElementAlignment);
+
+            int32 FirstIndex = ScriptArray->Add(NumItems, ElementSize, ElementAlignment);
+            uint8* DataPtr = static_cast<uint8*>(ScriptArray->GetData());
+            for (int32 i = 0; i < NumItems; ++i)
+            {
+                void* NewElementPtr = DataPtr + (FirstIndex + i) * ElementSize;
+                InnerProperty->InitializeValue(NewElementPtr);
+                CopyJsonValueToTableRow(NewElementPtr, InnerProperty, Items.at(i));
+            }
+        }
 	}
 	else
 	{
