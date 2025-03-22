@@ -23,17 +23,17 @@ namespace Palworld {
 
 		virtual void Load(const nlohmann::json& json) override final;
 	private:
-		UECustom::UDataTable* m_mapObjectAssignData;
-		UECustom::UDataTable* m_mapObjectFarmCrop;
-		UECustom::UDataTable* m_mapObjectItemProductDataTable;
-		UECustom::UDataTable* m_mapObjectMasterDataTable;
-		UECustom::UDataTable* m_mapObjectNameTable;
-		UECustom::UDataTable* m_buildObjectDataTable;
-		UECustom::UDataTable* m_buildObjectIconDataTable;
-        UECustom::UDataTable* m_buildObjectDescTable;
-		UECustom::UDataTable* m_technologyRecipeUnlockTable;
-		UECustom::UDataTable* m_technologyNameTable;
-		UECustom::UDataTable* m_technologyDescTable;
+		UECustom::UDataTable* m_mapObjectAssignData{};
+		UECustom::UDataTable* m_mapObjectFarmCrop{};
+		UECustom::UDataTable* m_mapObjectItemProductDataTable{};
+		UECustom::UDataTable* m_mapObjectMasterDataTable{};
+		UECustom::UDataTable* m_mapObjectNameTable{};
+		UECustom::UDataTable* m_buildObjectDataTable{};
+		UECustom::UDataTable* m_buildObjectIconDataTable{};
+        UECustom::UDataTable* m_buildObjectDescTable{};
+		UECustom::UDataTable* m_technologyRecipeUnlockTable{};
+		UECustom::UDataTable* m_technologyNameTable{};
+		UECustom::UDataTable* m_technologyDescTable{};
 
 		void Add(const RC::Unreal::FName& BuildingId, const nlohmann::json& Data);
 
@@ -43,18 +43,26 @@ namespace Palworld {
 
 		void SetupIconData(const RC::Unreal::FName& BuildingId, const nlohmann::json& Data);
 
-		void SetupAssignData(const RC::Unreal::FName& BuildingId, const nlohmann::json& Data);
+		void SetupAssignments(const RC::Unreal::FName& BuildingId, const nlohmann::json& Data);
+
+        void SetupAssignment(const RC::Unreal::FName& BuildingId, const nlohmann::json& Data);
 
 		void SetupCropData(const RC::Unreal::FName& BuildingId, const nlohmann::json& Data);
 
-		void SetupItemProduceData(const RC::Unreal::FName& BuildingId, const nlohmann::json& Data);
+		void SetupItemProductData(const RC::Unreal::FName& BuildingId, const nlohmann::json& Data);
 
 		void SetupTechnologyData(const RC::Unreal::FName& BuildingId, const nlohmann::json& Data);
 
         void SetupTranslations(const RC::Unreal::FName& BuildingId, const nlohmann::json& Data);
-    private:
-        static inline int64_t RadialIndex = 1000;
 
-        static int64_t GetNextRadialIndex();
+        void SetupTranslation(const RC::StringType& RowKey, UECustom::UDataTable* DataTable, const nlohmann::json& Value);
+
+        void ImportJson(const RC::Unreal::FName& BuildingId, const nlohmann::json& Data, UECustom::UDataTable* DataTable);
+
+        RC::StringType GetAssignIDSuffixByWorkType(const std::string& WorkType);
+    private:
+        static inline int RadialIndex = 1000;
+
+        static int GetNextRadialIndex();
 	};
 }
