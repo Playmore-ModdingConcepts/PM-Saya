@@ -54,6 +54,8 @@ namespace Palworld {
 
 		void LoadBlueprintMods(const std::filesystem::path& path);
 
+		void LoadBlueprintModsSafe(const std::filesystem::path& path);
+
 		void LoadAppearanceMods(const std::filesystem::path& path);
 
         void LoadItemMods(const std::filesystem::path& path);

@@ -44,22 +44,31 @@ namespace Palworld {
 
                 auto DefaultObject = static_cast<UClass*>(Asset)->GetClassDefaultObject();
                 ApplyMod(BlueprintData, DefaultObject);
+
+                PS::Log<RC::LogLevel::Normal>(STR("Applied modifications to {}\n"), static_cast<UClass*>(Asset)->GetNamePrivate().ToString());
             }
-            else
+        }
+    }
+
+    void PalBlueprintModLoader::LoadSafe(const nlohmann::json& Data)
+    {
+        for (auto& [BlueprintName, BlueprintData] : Data.items())
+        {
+            auto BlueprintName_Conv = RC::to_generic_string(BlueprintName);
+            if (!BlueprintName_Conv.starts_with(STR("/Game/")))
             {
-                auto BlueprintFName = FName(BlueprintName_Conv, FNAME_Add);
                 auto NewBlueprintMod = PalBlueprintMod(BlueprintName, BlueprintData);
-                auto ModsIt = BPModRegistry.find(BlueprintFName);
+                auto ModsIt = BPModRegistry.find(BlueprintName_Conv);
                 if (ModsIt != BPModRegistry.end())
                 {
-                    BPModRegistry.at(BlueprintFName).push_back(NewBlueprintMod);
+                    BPModRegistry.at(BlueprintName_Conv).push_back(NewBlueprintMod);
                 }
                 else
                 {
                     auto NewModContainer = std::vector<PalBlueprintMod>{
                         NewBlueprintMod
                     };
-                    BPModRegistry.emplace(BlueprintFName, NewModContainer);
+                    BPModRegistry.emplace(BlueprintName_Conv, NewModContainer);
                 }
             }
         }
@@ -74,26 +83,27 @@ namespace Palworld {
     {
         if (DefaultObject)
         {
-            if (Palworld::PalBlueprintModLoader::BPModRegistry.contains(This->GetNamePrivate()))
+            auto BPName = This->GetNamePrivate().ToString();
+            if (Palworld::PalBlueprintModLoader::BPModRegistry.contains(BPName))
             {
-                auto& Mods = PalBlueprintModLoader::GetModsForBlueprint(This->GetNamePrivate());
+                auto& Mods = PalBlueprintModLoader::GetModsForBlueprint(BPName);
                 for (auto& Mod : Mods)
                 {
                     try
                     {
                         PalBlueprintModLoader::ApplyMod(Mod, DefaultObject);
-                        PS::Log<RC::LogLevel::Normal>(STR("Applied modifications to {}\n"), Mod.GetBlueprintName().ToString());
+                        PS::Log<RC::LogLevel::Normal>(STR("Applied modifications to {}\n"), BPName);
                     }
                     catch (const std::exception& e)
                     {
-                        PS::Log<RC::LogLevel::Error>(STR("Failed modifying blueprint '{}', {}\n"), Mod.GetBlueprintName().ToString(), RC::to_generic_string(e.what()));
+                        PS::Log<RC::LogLevel::Error>(STR("Failed modifying blueprint '{}', {}\n"), BPName, RC::to_generic_string(e.what()));
                     }
                 }
             }
         }
     }
 
-    std::vector<PalBlueprintMod>& PalBlueprintModLoader::GetModsForBlueprint(const RC::Unreal::FName& Name)
+    std::vector<PalBlueprintMod>& PalBlueprintModLoader::GetModsForBlueprint(const RC::StringType& Name)
     {
         auto Iterator = BPModRegistry.find(Name);
         if (Iterator != BPModRegistry.end())
@@ -101,7 +111,7 @@ namespace Palworld {
             return Iterator->second;
         }
 
-        throw std::runtime_error(RC::fmt("Failed to get mods for this blueprint from BPModRegistry. Affected mod name: %S", Name.ToString().c_str()));
+        throw std::runtime_error(RC::fmt("Failed to get mods for this blueprint from BPModRegistry. Affected mod name: %S", Name.c_str()));
     }
 
     void PalBlueprintModLoader::ApplyMod(const PalBlueprintMod& BPMod, UObject* Object)
@@ -140,13 +150,13 @@ namespace Palworld {
                                     }
                                     else
                                     {
-                                        PS::Log<LogLevel::Warning>(STR("Failed to modify {} because property {} doesn't exist\n"), Object->GetNamePrivate().ToString(), GEN_VAR_OBJECT_PROPERTY_NAME);
+                                        PS::Log<LogLevel::Warning>(STR("Failed to modify {} because property {} doesn't exist\n"), Class->GetNamePrivate().ToString(), GEN_VAR_OBJECT_PROPERTY_NAME);
                                     }
                                 }
                             }
                             else
                             {
-                                PS::Log<LogLevel::Warning>(STR("{} failed to apply correctly, JSON value wasn't an object\n"), Object->GetNamePrivate().ToString());
+                                PS::Log<LogLevel::Warning>(STR("{} failed to apply correctly, JSON value wasn't an object\n"), Class->GetNamePrivate().ToString());
                             }
                         }
                         else
@@ -166,7 +176,7 @@ namespace Palworld {
             }
             else
             {
-                PS::Log<RC::LogLevel::Warning>(STR("Property '{}' does not exist in {}\n"), PropertyName, Object->GetNamePrivate().ToString());
+                PS::Log<RC::LogLevel::Warning>(STR("Property '{}' does not exist in {}\n"), PropertyName, Class->GetNamePrivate().ToString());
             }
         }
     }

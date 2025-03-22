@@ -44,10 +44,28 @@ namespace Palworld {
 
     void PalMainLoader::PreInitialize()
     {
+        std::vector<fs::path::string_type> listOfModsWithErrors;
+
         IterateModsFolder([&](const fs::directory_entry& modFolder) {
-            auto rawFolder = modFolder.path() / "raw";
-            LoadRawTables(rawFolder);
+            auto modName = modFolder.path().stem().native();
+            try
+            {
+                PS::Log<RC::LogLevel::Normal>(STR("Loading mod: {}\n"), modName);
+
+                auto rawFolder = modFolder.path() / "raw";
+                LoadRawTables(rawFolder);
+
+                auto blueprintFolder = modFolder.path() / "blueprints";
+                LoadBlueprintModsSafe(blueprintFolder);
+            }
+            catch (const std::exception&)
+            {
+                listOfModsWithErrors.push_back(modName);
+            }
         });
+
+        auto errorCount = listOfModsWithErrors.size();
+        m_errorCount += errorCount;
 
         auto PostLoadDefaultObjectAddress = Palworld::SignatureManager::GetSignature("UBlueprintGeneratedClass::PostLoadDefaultObject");
         if (PostLoadDefaultObjectAddress)
@@ -140,7 +158,7 @@ namespace Palworld {
                 auto translationsFolder = modsPath / "translations";
                 LoadLanguageMods(translationsFolder);
 
-                auto blueprintFolder = modsPath / "blueprints";
+                auto blueprintFolder = modFolder.path() / "blueprints";
                 LoadBlueprintMods(blueprintFolder);
             }
             catch (const std::exception&)
@@ -150,12 +168,7 @@ namespace Palworld {
         });
 
         auto errorCount = listOfModsWithErrors.size();
-        if (errorCount > 0)
-        {
-            PS::Log<LogLevel::Warning>(STR("{} mods had errors\n"), errorCount);
-        }
-
-        m_errorCount = errorCount;
+        m_errorCount += errorCount;
 	}
 
 	void PalMainLoader::LoadLanguageMods(const std::filesystem::path& path)
@@ -211,6 +224,13 @@ namespace Palworld {
     {
         ParseJsonFileInPath(path, [&](nlohmann::json data) {
             BlueprintModLoader.Load(data);
+        });
+    }
+
+    void PalMainLoader::LoadBlueprintModsSafe(const std::filesystem::path& path)
+    {
+        ParseJsonFileInPath(path, [&](nlohmann::json data) {
+            BlueprintModLoader.LoadSafe(data);
         });
     }
 
