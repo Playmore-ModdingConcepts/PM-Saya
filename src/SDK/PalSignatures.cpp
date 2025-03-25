@@ -23,7 +23,6 @@ namespace Palworld {
                         void* FunctionPointer = static_cast<void*>(self.get_match_address());
 
                         SignatureMap.emplace(ClassAndName, FunctionPointer);
-                        PS::Log<RC::LogLevel::Verbose>(STR("Found match for {}.\n"), RC::to_generic_string(ClassAndName));
 
                         self.get_did_succeed() = true;
 
@@ -49,7 +48,6 @@ namespace Palworld {
                         void* FunctionPointer = static_cast<void*>(self.get_match_address());
 
                         SignatureMap.emplace(ClassAndName, ASM::resolve_call(FunctionPointer));
-                        PS::Log<RC::LogLevel::Verbose>(STR("Found match for {}.\n"), RC::to_generic_string(ClassAndName));
 
                         self.get_did_succeed() = true;
 

@@ -9,7 +9,7 @@ namespace Palworld {
     public:
         static void Initialize();
         
-        // Example of expected parameter: UObjectGlobals::StaticLoadClass
+        // Example of expected parameter: UBlueprintGeneratedClass::PostLoadDefaultObject
         static void* GetSignature(const std::string& ClassAndFunction);
     private:
         static inline std::unordered_map<std::string, void*> SignatureMap;
