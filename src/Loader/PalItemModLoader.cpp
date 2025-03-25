@@ -41,23 +41,26 @@ namespace Palworld {
 		for (auto& [Key, Value] : Data.items())
 		{
 			auto ItemId = FName(RC::to_generic_string(Key), FNAME_Add);
-			if (m_itemDataAsset->StaticItemDataMap.Contains(ItemId))
-			{
-                if (Value.is_null())
+            auto Row = m_itemDataAsset->StaticItemDataMap.Find(ItemId);
+            if (Value.is_null())
+            {
+                if (!Row) return;
+                m_itemDataAsset->StaticItemDataMap.Remove(ItemId);
+                PS::Log<RC::LogLevel::Normal>(STR("Deleted Item '{}'\n"), ItemId.ToString());
+            }
+            else
+            {
+                if (Row)
                 {
-                    m_itemDataAsset->StaticItemDataMap.Remove(ItemId);
-                    PS::Log<RC::LogLevel::Normal>(STR("Deleted Item '{}'\n"), ItemId.ToString());
+                    Edit(ItemId, *Row, Value);
+                    PS::Log<RC::LogLevel::Normal>(STR("Modified Item '{}'\n"), ItemId.ToString());
                 }
                 else
                 {
-                    auto Row = m_itemDataAsset->StaticItemDataMap.FindRef(ItemId);
-                    Edit(ItemId, Row, Value);
+                    Add(ItemId, Value);
+                    PS::Log<RC::LogLevel::Normal>(STR("Added Item '{}'\n"), ItemId.ToString());
                 }
-			}
-			else
-			{
-				Add(ItemId, Value);
-			}
+            }
 		}
 	}
 
@@ -154,8 +157,6 @@ namespace Palworld {
 		AddTranslations(ItemId, Data);
 
 		m_itemDataAsset->StaticItemDataMap.Add(ItemId, Item);
-
-		PS::Log<RC::LogLevel::Normal>(STR("Added new Item '{}'\n"), ItemId.ToString());
 	}
 
 	void PalItemModLoader::Edit(const RC::Unreal::FName& ItemId, UPalStaticItemDataBase* Item, const nlohmann::json& Data)
