@@ -24,6 +24,17 @@ namespace Palworld {
     void PalRawTableLoader::Apply(UECustom::UDataTable* Table)
     {
         auto Name = Table->GetNamePrivate().ToString();
+
+        if (Name == STR("None"))
+        {
+            return;
+        }
+
+        m_tableMap.emplace(Name, Table);
+
+        static auto CompositeDataTableClass = UObjectGlobals::StaticFindObject<UClass*>(nullptr, nullptr, STR("/Script/Engine.CompositeDataTable"));
+        if (Table->GetClassPrivate() == CompositeDataTableClass) return;
+
         RC::StringType Suffix = STR("_Common");
         size_t Pos = Name.rfind(Suffix);
 
@@ -34,117 +45,141 @@ namespace Palworld {
         auto It = m_tableDataMap.find(Name);
         if (It != m_tableDataMap.end())
         {
-            auto SuccessfulModifications = 0;
-            auto SuccessfulAdditions = 0;
-            auto SuccessfulDeletions = 0;
-            auto ErrorCount = 0;
+            LoadResult Result{};
 
             for (auto& Data : It->second)
             {
-                for (auto& [row_key, row_data] : Data.items())
+                Apply(Data, Table, Result);
+            }
+
+            PS::Log<LogLevel::Normal>(STR("{}: {} rows updated, {} rows added, {} rows deleted, {} error{}.\n"), 
+                                      Name, Result.SuccessfulModifications, Result.SuccessfulAdditions,
+                                      Result.SuccessfulDeletions, Result.ErrorCount, Result.ErrorCount > 1 || Result.ErrorCount == 0 ? STR("s") : STR(""));
+        }
+    }
+
+    void PalRawTableLoader::Apply(const nlohmann::json& Data, UECustom::UDataTable* Table, LoadResult& OutResult)
+    {
+        auto Name = Table->GetNamePrivate().ToString();
+        for (auto& [row_key, row_data] : Data.items())
+        {
+            auto RowStruct = Table->GetRowStruct().UnderlyingObjectPointer;
+            if (row_key != "*")
+            {
+                auto RowKey = FName(RC::to_generic_string(row_key), FNAME_Add);
+                auto Row = Table->FindRowUnchecked(RowKey);
+                if (Row)
                 {
-                    auto RowStruct = Table->GetRowStruct().UnderlyingObjectPointer;
-                    if (row_key != "*")
+                    if (row_data.is_null())
                     {
-                        auto RowKey = FName(RC::to_generic_string(row_key), FNAME_Add);
-                        auto Row = Table->FindRowUnchecked(RowKey);
-                        if (Row)
-                        {
-                            if (row_data.is_null())
-                            {
-                                Table->RemoveRow(RowKey);
-                                SuccessfulDeletions++;
-                            }
-                            else
-                            {
-                                try
-                                {
-                                    for (auto Property : RowStruct->ForEachPropertyInChain())
-                                    {
-                                        auto PropertyName = RC::to_string(Property->GetName());
-                                        if (row_data.contains(PropertyName))
-                                        {
-                                            DataTableHelper::CopyJsonValueToTableRow(Row, Property, row_data.at(PropertyName));
-                                        }
-                                    }
-
-                                    SuccessfulModifications++;
-                                }
-                                catch (const std::exception& e)
-                                {
-                                    ErrorCount++;
-                                    PS::Log<LogLevel::Error>(STR("Failed to modify Row '{}' in {}: {}\n"), RowKey.ToString(), Name, RC::to_generic_string(e.what()));
-                                }
-                            }
-                        }
-                        else
-                        {
-                            auto NewRowData = FMemory::Malloc(RowStruct->GetStructureSize());
-                            RowStruct->InitializeStruct(NewRowData);
-
-                            try
-                            {
-                                for (auto Property : RowStruct->ForEachPropertyInChain())
-                                {
-                                    auto PropertyName = RC::to_string(Property->GetName());
-                                    if (row_data.contains(PropertyName))
-                                    {
-                                        DataTableHelper::CopyJsonValueToTableRow(NewRowData, Property, row_data.at(PropertyName));
-                                    }
-                                }
-
-                                Table->AddRow(RowKey, *reinterpret_cast<UECustom::FTableRowBase*>(NewRowData));
-
-                                SuccessfulAdditions++;
-                            }
-                            catch (const std::exception& e)
-                            {
-                                ErrorCount++;
-                                FMemory::Free(NewRowData);
-                                PS::Log<LogLevel::Error>(STR("Failed to add Row '{}' in {}: {}\n"), RowKey.ToString(), Name, RC::to_generic_string(e.what()));
-                            }
-                        }
+                        Table->RemoveRow(RowKey);
+                        OutResult.SuccessfulDeletions++;
                     }
                     else
                     {
                         try
                         {
-                            for (auto& [Key, Row] : Table->GetRowMap())
+                            for (auto Property : RowStruct->ForEachPropertyInChain())
                             {
-                                for (auto Property : RowStruct->ForEachPropertyInChain())
+                                auto PropertyName = RC::to_string(Property->GetName());
+                                if (row_data.contains(PropertyName))
                                 {
-                                    auto PropertyName = RC::to_string(Property->GetName());
-                                    if (row_data.contains(PropertyName))
-                                    {
-                                        DataTableHelper::CopyJsonValueToTableRow(Row, Property, row_data.at(PropertyName));
-                                    }
+                                    DataTableHelper::CopyJsonValueToTableRow(Row, Property, row_data.at(PropertyName));
                                 }
-
-                                SuccessfulModifications++;
                             }
+
+                            OutResult.SuccessfulModifications++;
                         }
                         catch (const std::exception& e)
                         {
-                            ErrorCount++;
-                            PS::Log<LogLevel::Error>(STR("Failed to do wildcard modification in {}: {}\n"), Name, RC::to_generic_string(e.what()));
+                            OutResult.ErrorCount++;
+                            PS::Log<LogLevel::Error>(STR("Failed to modify Row '{}' in {}: {}\n"), RowKey.ToString(), Name, RC::to_generic_string(e.what()));
                         }
                     }
                 }
-            }
+                else
+                {
+                    auto NewRowData = FMemory::Malloc(RowStruct->GetStructureSize());
+                    RowStruct->InitializeStruct(NewRowData);
 
-            PS::Log<LogLevel::Normal>(STR("{}: {} rows updated, {} rows added, {} rows deleted, {} error{}.\n"), 
-                                      Name, SuccessfulModifications, SuccessfulAdditions, SuccessfulDeletions, ErrorCount, ErrorCount > 1 || ErrorCount == 0 ? STR("s") : STR(""));
+                    try
+                    {
+                        for (auto Property : RowStruct->ForEachPropertyInChain())
+                        {
+                            auto PropertyName = RC::to_string(Property->GetName());
+                            if (row_data.contains(PropertyName))
+                            {
+                                DataTableHelper::CopyJsonValueToTableRow(NewRowData, Property, row_data.at(PropertyName));
+                            }
+                        }
+
+                        Table->AddRow(RowKey, *reinterpret_cast<UECustom::FTableRowBase*>(NewRowData));
+
+                        OutResult.SuccessfulAdditions++;
+                    }
+                    catch (const std::exception& e)
+                    {
+                        OutResult.ErrorCount++;
+                        FMemory::Free(NewRowData);
+                        PS::Log<LogLevel::Error>(STR("Failed to add Row '{}' in {}: {}\n"), RowKey.ToString(), Name, RC::to_generic_string(e.what()));
+                    }
+                }
+            }
+            else
+            {
+                try
+                {
+                    for (auto& [Key, Row] : Table->GetRowMap())
+                    {
+                        for (auto Property : RowStruct->ForEachPropertyInChain())
+                        {
+                            auto PropertyName = RC::to_string(Property->GetName());
+                            if (row_data.contains(PropertyName))
+                            {
+                                DataTableHelper::CopyJsonValueToTableRow(Row, Property, row_data.at(PropertyName));
+                            }
+                        }
+
+                        OutResult.SuccessfulModifications++;
+                    }
+                }
+                catch (const std::exception& e)
+                {
+                    OutResult.ErrorCount++;
+                    PS::Log<LogLevel::Error>(STR("Failed to do wildcard modification in {}: {}\n"), Name, RC::to_generic_string(e.what()));
+                }
+            }
         }
     }
 
-	void PalRawTableLoader::Load(const nlohmann::json& data)
+	void PalRawTableLoader::Load(const nlohmann::json& Data)
 	{
-        for (auto& [table_key, table_data] : data.items())
+        for (auto& [table_key, table_data] : Data.items())
         {
             auto TableKey = RC::to_generic_string(table_key);
             AddData(TableKey, table_data);
         }
 	}
+
+    void PalRawTableLoader::Reload(const nlohmann::json& Data)
+    {
+        for (auto& [table_key, table_data] : Data.items())
+        {
+            auto TableKey = RC::to_generic_string(table_key);
+            auto TableIt = m_tableMap.find(TableKey);
+            if (TableIt != m_tableMap.end())
+            {
+                auto Table = TableIt->second;
+                auto Name = Table->GetNamePrivate().ToString();
+                LoadResult Result;
+                Apply(table_data, Table, Result);
+
+                PS::Log<LogLevel::Normal>(STR("{}: {} rows updated, {} rows added, {} rows deleted, {} error{}.\n"),
+                    Name, Result.SuccessfulModifications, Result.SuccessfulAdditions,
+                    Result.SuccessfulDeletions, Result.ErrorCount, Result.ErrorCount > 1 || Result.ErrorCount == 0 ? STR("s") : STR(""));
+            }
+        }
+    }
 
     void PalRawTableLoader::AddData(const RC::StringType& TableName, const nlohmann::json& Data)
     {

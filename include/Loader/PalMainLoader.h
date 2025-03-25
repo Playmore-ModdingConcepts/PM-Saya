@@ -11,6 +11,7 @@
 #include "Loader/PalBuildingModLoader.h"
 #include "Loader/PalRawTableLoader.h"
 #include "Loader/PalBlueprintModLoader.h"
+#include "FileWatch.hpp"
 
 namespace UECustom {
     class UDataTable;
@@ -26,6 +27,9 @@ namespace Palworld {
 		void PreInitialize();
 
 		void Initialize();
+
+        // Should be called in Game Thread
+        void ReloadMods();
 	private:
 		PalLanguageModLoader LanguageModLoader;
 		PalMonsterModLoader MonsterModLoader;
@@ -41,6 +45,10 @@ namespace Palworld {
         RC::Unreal::UFunction* m_loadBrowserFunction{};
         RC::Unreal::CallbackId m_loadBrowserFunctionCallbackId{};
         std::pair<int, int> m_titleCallbackIds{};
+
+        std::unique_ptr<filewatch::FileWatch<std::wstring>> m_fileWatch;
+
+        void SetupAutoReload();
 
 		void Load();
 
@@ -65,6 +73,8 @@ namespace Palworld {
         void IterateModsFolder(const std::function<void(const std::filesystem::directory_entry&)>& callback);
 
         void ParseJsonFileInPath(const std::filesystem::path& path, const std::function<void(const nlohmann::json&)>& callback);
+
+        void ParseJsonFilesInPath(const std::filesystem::path& path, const std::function<void(const nlohmann::json&)>& callback);
 
         void OnPostLoadDefaultObject(RC::Unreal::UClass* This, RC::Unreal::UObject* DefaultObject);
 

@@ -11,6 +11,8 @@
 #include "SDK/Classes/PalUtility.h"
 #include "SDK/PalSignatures.h"
 #include "UE4SSProgram.hpp"
+#include <FileWatch.hpp>
+#include <SDK/Classes/Async.h>
 
 using namespace RC;
 using namespace RC::Unreal;
@@ -126,7 +128,125 @@ namespace Palworld {
                 DisplayErrorPopup();
             });
         }
+
+        if (PS::PSConfig::IsAutoReloadEnabled())
+        {
+            PS::Log<LogLevel::Normal>(STR("Auto-reload is enabled.\n"));
+            SetupAutoReload();
+        }
 	}
+
+    void PalMainLoader::ReloadMods()
+    {
+        IterateModsFolder([&](const fs::directory_entry& modFolder) {
+            auto& modsPath = modFolder.path();
+            auto modName = modsPath.stem().native();
+            try
+            {
+                PS::Log<RC::LogLevel::Normal>(STR("Reloading mod: {}\n"), modName);
+
+                auto palFolder = modsPath / "pals";
+                LoadPalMods(palFolder);
+
+                auto appearanceFolder = modsPath / "appearance";
+                LoadAppearanceMods(appearanceFolder);
+
+                auto buildingsFolder = modsPath / "buildings";
+                LoadBuildingMods(buildingsFolder);
+
+                auto itemsFolder = modsPath / "items";
+                LoadItemMods(itemsFolder);
+
+                auto skinsFolder = modsPath / "skins";
+                LoadSkinMods(skinsFolder);
+
+                auto translationsFolder = modsPath / "translations";
+                LoadLanguageMods(translationsFolder);
+
+                auto blueprintFolder = modFolder.path() / "blueprints";
+                LoadBlueprintMods(blueprintFolder);
+            }
+            catch (const std::exception& e)
+            {
+                PS::Log<LogLevel::Error>(STR("Failed to reload mod {} - {}\n"), modName, RC::to_generic_string(e.what()));
+            }
+        });
+    }
+
+    void PalMainLoader::SetupAutoReload()
+    {
+        m_fileWatch = std::make_unique<filewatch::FileWatch<std::wstring>>(
+            fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PalSchema" / "mods",
+            std::wregex(L".*\\.json"),
+            [&](const std::wstring& path, const filewatch::Event change_type) {
+                if (change_type == filewatch::Event::modified)
+                {
+                    auto ue4ssPath = fs::path(UE4SSProgram::get_program().get_working_directory());
+                    auto modFilePath = ue4ssPath / "Mods" / "PalSchema" / "mods" / path;
+
+                    std::ifstream f(modFilePath);
+                    if (f.peek() == std::ifstream::traits_type::eof()) {
+                        return;
+                    }
+                    f.close();
+
+                    UECustom::AsyncTask(UECustom::ENamedThreads::GameThread, [this, path, modFilePath]() {
+                        auto subPath = fs::path(path);
+                        auto it = subPath.begin();
+                        if (std::distance(subPath.begin(), subPath.end()) >= 2) {
+                            auto modName = it->native();
+
+                            std::advance(it, 1);
+                            auto folderType = it->string();
+                            try
+                            {
+                                ParseJsonFileInPath(modFilePath, [&](const nlohmann::json& data) {
+                                    if (folderType == "pals")
+                                    {
+                                        MonsterModLoader.Load(data);
+                                    }
+                                    else if (folderType == "appearance")
+                                    {
+                                        AppearanceModLoader.Load(data);
+                                    }
+                                    else if (folderType == "buildings")
+                                    {
+                                        BuildingModLoader.Load(data);
+                                    }
+                                    else if (folderType == "items")
+                                    {
+                                        ItemModLoader.Load(data);
+                                    }
+                                    else if (folderType == "skins")
+                                    {
+                                        SkinModLoader.Load(data);
+                                    }
+                                    else if (folderType == "translations")
+                                    {
+                                        LanguageModLoader.Load(data);
+                                    }
+                                    else if (folderType == "blueprints")
+                                    {
+                                        BlueprintModLoader.Load(data);
+                                    }
+                                    else if (folderType == "raw")
+                                    {
+                                        RawTableLoader.Reload(data);
+                                    }
+                                });
+
+                                PS::Log<LogLevel::Normal>(STR("Reloaded mod {}\n"), modName);
+                            }
+                            catch (const std::exception& e)
+                            {
+                                PS::Log<LogLevel::Error>(STR("Failed to reload mod {} - {}\n"), modName, RC::to_generic_string(e.what()));
+                            }
+                        }
+                    });
+                }
+            }
+        );
+    }
 
     void PalMainLoader::Load()
 	{
@@ -178,7 +298,7 @@ namespace Palworld {
         auto globalLanguageFolder = path / "global";
         if (fs::exists(globalLanguageFolder))
         {
-            ParseJsonFileInPath(globalLanguageFolder, [&](nlohmann::json data) {
+            ParseJsonFilesInPath(globalLanguageFolder, [&](nlohmann::json data) {
                 LanguageModLoader.Load(data);
             });
         }
@@ -186,7 +306,7 @@ namespace Palworld {
         auto translationLanguageFolder = path / currentLanguage;
 		if (fs::exists(translationLanguageFolder))
 		{
-            ParseJsonFileInPath(translationLanguageFolder, [&](nlohmann::json data) {
+            ParseJsonFilesInPath(translationLanguageFolder, [&](nlohmann::json data) {
                 LanguageModLoader.Load(data);
             });
 		}
@@ -194,56 +314,56 @@ namespace Palworld {
 
 	void PalMainLoader::LoadPalMods(const std::filesystem::path& path)
 	{
-        ParseJsonFileInPath(path, [&](nlohmann::json data) {
+        ParseJsonFilesInPath(path, [&](nlohmann::json data) {
             MonsterModLoader.Load(data);
         });
 	}
 
 	void PalMainLoader::LoadBuildingMods(const std::filesystem::path& path)
 	{
-        ParseJsonFileInPath(path, [&](nlohmann::json data) {
+        ParseJsonFilesInPath(path, [&](nlohmann::json data) {
             BuildingModLoader.Load(data);
         });
 	}
 
 	void PalMainLoader::LoadAppearanceMods(const std::filesystem::path& path)
 	{
-        ParseJsonFileInPath(path, [&](nlohmann::json data) {
+        ParseJsonFilesInPath(path, [&](nlohmann::json data) {
             AppearanceModLoader.Load(data);
         });
 	}
 
     void PalMainLoader::LoadRawTables(const std::filesystem::path& path)
     {
-        ParseJsonFileInPath(path, [&](nlohmann::json data) {
+        ParseJsonFilesInPath(path, [&](nlohmann::json data) {
             RawTableLoader.Load(data);
         });
     }
 
     void PalMainLoader::LoadBlueprintMods(const std::filesystem::path& path)
     {
-        ParseJsonFileInPath(path, [&](nlohmann::json data) {
+        ParseJsonFilesInPath(path, [&](nlohmann::json data) {
             BlueprintModLoader.Load(data);
         });
     }
 
     void PalMainLoader::LoadBlueprintModsSafe(const std::filesystem::path& path)
     {
-        ParseJsonFileInPath(path, [&](nlohmann::json data) {
+        ParseJsonFilesInPath(path, [&](nlohmann::json data) {
             BlueprintModLoader.LoadSafe(data);
         });
     }
 
     void PalMainLoader::LoadItemMods(const std::filesystem::path& path)
     {
-        ParseJsonFileInPath(path, [&](nlohmann::json data) {
+        ParseJsonFilesInPath(path, [&](nlohmann::json data) {
             ItemModLoader.Load(data);
         });
     }
 
     void PalMainLoader::LoadSkinMods(const std::filesystem::path& path)
     {
-        ParseJsonFileInPath(path, [&](nlohmann::json data) {
+        ParseJsonFilesInPath(path, [&](nlohmann::json data) {
             SkinModLoader.Load(data);
         });
     }
@@ -264,6 +384,21 @@ namespace Palworld {
 
     void PalMainLoader::ParseJsonFileInPath(const std::filesystem::path& path, const std::function<void(const nlohmann::json&)>& callback)
     {
+        if (!fs::exists(path))
+        {
+            PS::Log<LogLevel::Error>(STR("Failed parsing mod file {} - file doesn't exist.\n"), path.native());
+            return;
+        }
+
+        auto ignoreComments = path.extension() == ".jsonc";
+        std::ifstream f(path);
+
+        nlohmann::json data = nlohmann::json::parse(f, nullptr, true, ignoreComments);
+        callback(data);
+    }
+
+    void PalMainLoader::ParseJsonFilesInPath(const std::filesystem::path& path, const std::function<void(const nlohmann::json&)>& callback)
+    {
         if (!fs::is_directory(path))
         {
             return;
@@ -277,11 +412,7 @@ namespace Palworld {
                 {
                     if (filePath.extension() == ".json" || filePath.extension() == ".jsonc")
                     {
-                        auto ignoreComments = filePath.extension() == ".jsonc";
-                        std::ifstream f(filePath);
-                        nlohmann::json data = nlohmann::json::parse(f, nullptr, true, ignoreComments);
-                        callback(data);
-                        PS::Log<RC::LogLevel::Normal>(STR("Mod '{}' loaded.\n"), filePath.filename().native());
+                        ParseJsonFileInPath(filePath, callback);
                     }
                 }
             }
@@ -330,9 +461,6 @@ namespace Palworld {
     void PalMainLoader::HandleDataTableChanged(UECustom::UDataTable* This, FName param_1)
     {
         HandleDataTableChanged_Hook.call(This, param_1);
-
-        static auto CompositeDataTableClass = UObjectGlobals::StaticFindObject<UClass*>(nullptr, nullptr, STR("/Script/Engine.CompositeDataTable"));
-        if (This->GetClassPrivate() == CompositeDataTableClass) return;
 
         for (auto& Callback : HandleDataTableChangedCallbacks)
         {
