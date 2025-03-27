@@ -59,7 +59,7 @@ namespace Palworld {
 			auto TableRow = m_mapObjectMasterDataTable->FindRowUnchecked(BuildingId);
 			if (TableRow)
 			{
-                PS::Log<LogLevel::Error>(STR("Editing of buildings should be done via raw tables instead"));
+                PS::Log<LogLevel::Error>(STR("Editing of buildings should be done via raw tables instead\n"));
 			}
 			else
 			{
@@ -226,6 +226,12 @@ namespace Palworld {
                     {
                         auto RadialIndex = GetNextRadialIndex();
                         FMemory::Memcpy(Property->ContainerPtrToValuePtr<void>(RowData), &RadialIndex, sizeof(int));
+                        continue;
+                    }
+
+                    if (PropertyName == "MapObjectId")
+                    {
+                        FMemory::Memcpy(Property->ContainerPtrToValuePtr<void>(RowData), &BuildingId, sizeof(FName));
                         continue;
                     }
 
