@@ -64,7 +64,7 @@ namespace Palworld {
         for (auto& [row_key, row_data] : Data.items())
         {
             auto RowStruct = Table->GetRowStruct().UnderlyingObjectPointer;
-            if (row_key != "*")
+            if (!row_key.contains("*"))
             {
                 auto RowKey = FName(RC::to_generic_string(row_key), FNAME_Add);
                 auto Row = Table->FindRowUnchecked(RowKey);
