@@ -7,19 +7,24 @@
 #include "Unreal/Property/FMapProperty.hpp"
 #include "Unreal/Property/FStructProperty.hpp"
 #include "Unreal/Property/FStrProperty.hpp"
+#include "Unreal/Property/FClassProperty.hpp"
 #include "Unreal/Property/FSoftClassProperty.hpp"
 #include "Unreal/Property/FSoftObjectProperty.hpp"
 #include "Unreal/Property/FTextProperty.hpp"
 #include "Unreal/FString.hpp"
 #include "Unreal/NameTypes.hpp"
+#include "Unreal/UClass.hpp"
 #include "Unreal/UEnum.hpp"
 #include "Unreal/UScriptStruct.hpp"
+#include "Unreal/GameplayStatics.hpp"
+#include "Unreal/World.hpp"
 #include "Utility/DataTableHelper.h"
 #include "Utility/Logging.h"
 #include "SDK/Classes/TSoftObjectPtr.h"
 #include "SDK/Classes/Texture2D.h"
 #include "SDK/Classes/TSoftClassPtr.h"
 #include "SDK/Structs/FLinearColor.h"
+#include "SDK/Classes/KismetSystemLibrary.h"
 
 using namespace RC;
 using namespace RC::Unreal;
@@ -71,20 +76,61 @@ void Palworld::DataTableHelper::CopyJsonValueToTableRow(void* TableRow, RC::Unre
 	}
 	else if (auto NumProperty = CastField<FNumericProperty>(Property))
 	{
-		if (!Value.is_number()) throw std::runtime_error(std::format("Property {} must be a number", RC::to_string(PropertyName)));
+        if (!NumProperty->IsEnum())
+        {
+            if (!Value.is_number()) throw std::runtime_error(std::format("Property {} must be a number", RC::to_string(PropertyName)));
+        }
 
-		if (NumProperty->IsInteger())
-		{
-			NumProperty->SetIntPropertyValue(PropertyValue, Value.get<int64>());
-		}
-		else if (NumProperty->IsFloatingPoint())
-		{
-			NumProperty->SetFloatingPointPropertyValue(PropertyValue, Value.get<double>());
-		}
-		else
-		{
-			PS::Log<RC::LogLevel::Warning>(STR("Unhandled Numeric Type: {}\n"), Property->GetName());
-		}
+        if (NumProperty->IsEnum())
+        {
+            auto Enum = NumProperty->GetIntPropertyEnum();
+            if (!Enum)
+            {
+                throw std::runtime_error(std::format("EnumProperty {} had an invalid Enum value", RC::to_string(PropertyName)));
+            }
+
+            auto ParsedValue = Value.get<std::string>();
+            if (!ParsedValue.contains("::"))
+            {
+                ParsedValue = std::format("{}::{}", RC::to_string(Type.GetCharArray()), ParsedValue);
+            }
+
+            auto EnumName = FName(RC::to_generic_string(ParsedValue));
+
+            bool WasEnumFound = false;
+            int64_t EnumValue = 0;
+
+            for (const auto& EnumPair : Enum->GetNames())
+            {
+                if (EnumPair.Key == EnumName)
+                {
+                    WasEnumFound = true;
+                    EnumValue = EnumPair.Value;
+                }
+            }
+
+            if (!WasEnumFound)
+            {
+                throw std::runtime_error(std::format("Enum '{}' doesn't exist", ParsedValue));
+            }
+
+            NumProperty->SetIntPropertyValue(PropertyValue, EnumValue);
+        }
+        else
+        {
+            if (NumProperty->IsInteger())
+            {
+                NumProperty->SetIntPropertyValue(PropertyValue, Value.get<int64>());
+            }
+            else if (NumProperty->IsFloatingPoint())
+            {
+                NumProperty->SetFloatingPointPropertyValue(PropertyValue, Value.get<double>());
+            }
+            else
+            {
+                PS::Log<RC::LogLevel::Warning>(STR("Unhandled Numeric Type: {}\n"), Property->GetName());
+            }
+        }
 	}
 	else if (auto BoolProperty = CastField<FBoolProperty>(Property))
 	{
@@ -111,6 +157,43 @@ void Palworld::DataTableHelper::CopyJsonValueToTableRow(void* TableRow, RC::Unre
 		auto ParsedValue = Value.get<std::string>();
 		auto Text = FText(RC::to_generic_string(ParsedValue).c_str());
 		TextProperty->SetPropertyValue(PropertyValue, Text);
+	}
+	else if (auto ClassProperty = CastField<FClassProperty>(Property))
+	{
+		if (!Value.is_string()) throw std::runtime_error(std::format("Property {} must be a string", RC::to_string(PropertyName)));
+		auto ParsedValue = RC::to_generic_string(Value.get<std::string>());
+        auto SoftObjectPtr = UECustom::TSoftObjectPtr<UObject>(UECustom::FSoftObjectPath(ParsedValue));
+        auto Asset = UECustom::UKismetSystemLibrary::LoadAsset_Blocking(SoftObjectPtr);
+
+        if (!Asset)
+        {
+            throw std::runtime_error(std::format("Property {} was supplied an invalid class of {}", RC::to_string(PropertyName), RC::to_string(ParsedValue)));
+        }
+
+        // Not ideal, but right now I don't have a better solution for keeping the class loaded.
+        Asset->SetRootSet();
+
+        void* ValuePtr = ClassProperty->ContainerPtrToValuePtr<void>(TableRow);
+        ClassProperty->SetPropertyValue(ValuePtr, Asset);
+	}
+	else if (auto ObjectProperty = CastField<FObjectProperty>(Property) && ClassName == STR("ObjectProperty"))
+	{
+		if (!Value.is_object()) throw std::runtime_error(std::format("Property {} must be an object", RC::to_string(PropertyName)));
+		auto ParsedValue = Value.get<nlohmann::json>();
+
+        auto ObjectValue = *Property->ContainerPtrToValuePtr<UObject*>(static_cast<void*>(TableRow));
+        if (ObjectValue)
+        {
+            for (auto& [InnerKey, InnerValue] : Value.items())
+            {
+                auto ObjectValue_PropertyName = RC::to_generic_string(InnerKey);
+                auto ObjectValue_Property = ObjectValue->GetPropertyByNameInChain(ObjectValue_PropertyName.c_str());
+                if (ObjectValue_Property)
+                {
+                    Palworld::DataTableHelper::CopyJsonValueToTableRow(static_cast<void*>(ObjectValue), ObjectValue_Property, InnerValue);
+                }
+            }
+        }
 	}
 	else if (auto SoftObjectProperty = CastField<FSoftObjectProperty>(Property) && ClassName == STR("SoftObjectProperty"))
 	{
@@ -160,7 +243,7 @@ void Palworld::DataTableHelper::CopyJsonValueToTableRow(void* TableRow, RC::Unre
 	}
 	else if (auto ArrayProperty = CastField<FArrayProperty>(Property))
 	{
-		if (!Value.is_object()) throw std::runtime_error(std::format("Property {} must be an object", RC::to_string(PropertyName)));
+		if (!Value.is_object() && !Value.is_array()) throw std::runtime_error(std::format("Property {} must be an object or array", RC::to_string(PropertyName)));
 		auto ParsedValue = Value.get<nlohmann::json>();
 
 		auto ArrayContainer = ArrayProperty->ContainerPtrToValuePtr<void>(TableRow);
@@ -175,40 +258,64 @@ void Palworld::DataTableHelper::CopyJsonValueToTableRow(void* TableRow, RC::Unre
 		auto ElementSize = InnerProperty->GetElementSize();
 		auto ElementAlignment = InnerProperty->GetMinAlignment();
 
-		if (Value.contains("Action"))
-		{
-			auto Action = Value.at("Action").get<std::string>();
-			if (Action == "Clear")
-			{
-				for (int32 Index = 0; Index < ScriptArray->Num(); ++Index)
-				{
-					void* ElementPtr = static_cast<uint8*>(ScriptArray->GetData()) + Index * ElementSize;
-					InnerProperty->DestroyValue(ElementPtr);
-				}
+        if (Value.is_object())
+        {
+            if (Value.contains("Action"))
+            {
+                auto Action = Value.at("Action").get<std::string>();
+                if (Action == "Clear")
+                {
+                    for (int32 Index = 0; Index < ScriptArray->Num(); ++Index)
+                    {
+                        void* ElementPtr = static_cast<uint8*>(ScriptArray->GetData()) + Index * ElementSize;
+                        InnerProperty->DestroyValue(ElementPtr);
+                    }
 
-				ScriptArray->Empty(0, ElementSize, ElementAlignment);
-			}
-		}
+                    ScriptArray->Empty(0, ElementSize, ElementAlignment);
+                }
+            }
 
-		if (Value.contains("Items"))
-		{
-			if (!Value.at("Items").is_array())
-			{
-				throw std::runtime_error(std::format("Field Items must be an array"));
-			}
+            if (Value.contains("Items"))
+            {
+                if (!Value.at("Items").is_array())
+                {
+                    throw std::runtime_error(std::format("Field Items must be an array"));
+                }
 
-			auto Items = Value.at("Items").get<nlohmann::json::array_t>();
-			auto NumItems = Items.size();
+                auto Items = Value.at("Items").get<nlohmann::json::array_t>();
+                auto NumItems = Items.size();
 
-			int32 FirstIndex = ScriptArray->Add(NumItems, ElementSize, ElementAlignment);
-			uint8* DataPtr = static_cast<uint8*>(ScriptArray->GetData());
-			for (int32 i = 0; i < NumItems; ++i)
-			{
-				void* NewElementPtr = DataPtr + (FirstIndex + i) * ElementSize;
-				InnerProperty->InitializeValue(NewElementPtr);
-				CopyJsonValueToTableRow(NewElementPtr, InnerProperty, Items.at(i));
-			}
-		}
+                int32 FirstIndex = ScriptArray->Add(NumItems, ElementSize, ElementAlignment);
+                uint8* DataPtr = static_cast<uint8*>(ScriptArray->GetData());
+                for (int32 i = 0; i < NumItems; ++i)
+                {
+                    void* NewElementPtr = DataPtr + (FirstIndex + i) * ElementSize;
+                    InnerProperty->InitializeValue(NewElementPtr);
+                    CopyJsonValueToTableRow(NewElementPtr, InnerProperty, Items.at(i));
+                }
+            }
+        }
+        else if (Value.is_array())
+        {
+            auto Items = Value.get<nlohmann::json::array_t>();
+            auto NumItems = Items.size();
+
+            for (int32 Index = 0; Index < ScriptArray->Num(); ++Index)
+            {
+                void* ElementPtr = static_cast<uint8*>(ScriptArray->GetData()) + Index * ElementSize;
+                InnerProperty->DestroyValue(ElementPtr);
+            }
+            ScriptArray->Empty(0, ElementSize, ElementAlignment);
+
+            int32 FirstIndex = ScriptArray->Add(NumItems, ElementSize, ElementAlignment);
+            uint8* DataPtr = static_cast<uint8*>(ScriptArray->GetData());
+            for (int32 i = 0; i < NumItems; ++i)
+            {
+                void* NewElementPtr = DataPtr + (FirstIndex + i) * ElementSize;
+                InnerProperty->InitializeValue(NewElementPtr);
+                CopyJsonValueToTableRow(NewElementPtr, InnerProperty, Items.at(i));
+            }
+        }
 	}
 	else
 	{

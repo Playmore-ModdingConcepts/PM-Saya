@@ -5,6 +5,7 @@
 #include <Helpers/String.hpp>
 #include "Utility/Config.h"
 #include "Utility/Logging.h"
+#include "UE4SSProgram.hpp"
 
 namespace fs = std::filesystem;
 
@@ -13,17 +14,13 @@ using namespace RC;
 namespace PS {
     void PSConfig::Load()
     {
-        if (m_config) return;
+        if (s_config) return;
 
         try
         {
-            m_config = std::make_unique<PSConfig>();
+            s_config = std::make_unique<PSConfig>();
 
-            fs::path cwd = fs::current_path() / "Mods" / "PalSchema" / "config";
-            if (!fs::exists(cwd))
-            {
-                cwd = fs::current_path() / "ue4ss" / "Mods" / "PalSchema" / "config";
-            }
+            auto cwd = fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PalSchema" / "config";
 
             if (!fs::exists(cwd))
             {
@@ -36,7 +33,7 @@ namespace PS {
             nlohmann::ordered_json data = {};
             if (f.fail()) {
                 data["languageOverride"] = "";
-                data["enableExperimentalBlueprintSupport"] = false;
+                data["enableAutoReload"] = false;
                 std::ofstream out_file(cwd / "config.json");
                 out_file << data.dump(4);
                 out_file.close();
@@ -46,36 +43,21 @@ namespace PS {
                 data = nlohmann::ordered_json::parse(f);
             }
 
-            if (!data.contains("languageOverride"))
+            if (!GetString(data, "languageOverride", "", s_config->m_languageOverride))
             {
                 data["languageOverride"] = "";
                 ShouldResave = true;
             }
-            else
-            {
-                if (!data.at("languageOverride").is_string())
-                {
-                    PS::Log<RC::LogLevel::Error>(STR("languageOverride in config.json wasn't a string, resetting to default.\n"));
-                    data["languageOverride"] = "";
-                    ShouldResave = true;
-                }
-                m_config->m_languageOverride = data["languageOverride"].get<std::string>();
-            }
 
-            if (!data.contains("enableExperimentalBlueprintSupport"))
+            if (!GetBool(data, "enableAutoReload", false, s_config->m_enableAutoReload))
             {
-                data["enableExperimentalBlueprintSupport"] = false;
+                data["enableAutoReload"] = false;
                 ShouldResave = true;
             }
-            else
+
+            if (TryRemoveDeprecatedValues(data))
             {
-                if (!data.at("enableExperimentalBlueprintSupport").is_boolean())
-                {
-                    PS::Log<RC::LogLevel::Error>(STR("enableExperimentalBlueprintSupport in config.json wasn't a bool, resetting to default.\n"));
-                    data["enableExperimentalBlueprintSupport"] = false;
-                    ShouldResave = true;
-                }
-                m_config->m_enableExperimentalBlueprintSupport = data["enableExperimentalBlueprintSupport"].get<bool>();
+                ShouldResave = true;
             }
 
             if (ShouldResave)
@@ -89,15 +71,15 @@ namespace PS {
         }
         catch (const std::exception& e)
         {
-            PS::Log<RC::LogLevel::Error>(STR("Failed to load PalSchema Config: {}\n"), RC::to_generic_string(e.what()));
+            PS::Log<RC::LogLevel::Error>(STR("Failed to load PalSchema Config - {}\n"), RC::to_generic_string(e.what()));
         }
     }
 
     std::string PSConfig::GetLanguageOverride()
     {
-        if (m_config)
+        if (s_config)
         {
-            return m_config->m_languageOverride;
+            return s_config->m_languageOverride;
         }
 
         PS::Log<RC::LogLevel::Error>(STR("PalSchema Config must be initialized first before accessing GetLanguageOverride!"));
@@ -105,15 +87,74 @@ namespace PS {
         return "";
     }
 
-    bool PSConfig::IsExperimentalBlueprintSupportEnabled()
+    bool PSConfig::IsAutoReloadEnabled()
     {
-        if (m_config)
+        if (s_config)
         {
-            return m_config->m_enableExperimentalBlueprintSupport;
+            return s_config->m_enableAutoReload;
         }
 
-        PS::Log<RC::LogLevel::Error>(STR("PalSchema Config must be initialized first before accessing IsExperimentalBlueprintSupportEnabled!"));
+        PS::Log<RC::LogLevel::Error>(STR("PalSchema Config must be initialized first before accessing IsAutoReloadEnabled!"));
 
-        return false;
+        return "";
+    }
+
+    bool PSConfig::TryRemoveDeprecatedValues(nlohmann::ordered_json& Data)
+    {
+        bool wasDeprecationPerformed = false;
+        for (auto& deprecatedValue : s_deprecatedValues)
+        {
+            if (Data.contains(deprecatedValue))
+            {
+                Data.erase(deprecatedValue);
+                wasDeprecationPerformed = true;
+            }
+        }
+
+        return wasDeprecationPerformed;
+    }
+
+    bool PSConfig::GetString(const nlohmann::ordered_json& Data, const std::string& Key, const std::string& DefaultValue, std::string& OutValue)
+    {
+        if (!Data.contains(Key))
+        {
+            PS::Log<RC::LogLevel::Error>(STR("{} in config.json was missing, resetting to default.\n"), RC::to_generic_string(Key));
+            OutValue = DefaultValue;
+            return false;
+        }
+        else
+        {
+            if (!Data.at(Key).is_string())
+            {
+                PS::Log<RC::LogLevel::Error>(STR("{} in config.json wasn't a string, resetting to default.\n"), RC::to_generic_string(Key));
+                OutValue = DefaultValue;
+                return false;
+            }
+        }
+
+        OutValue = Data[Key].get<std::string>();
+        return true;
+    }
+
+    bool PSConfig::GetBool(const nlohmann::ordered_json& Data, const std::string& Key, const bool& DefaultValue, bool& OutValue)
+    {
+        if (!Data.contains(Key))
+        {
+            PS::Log<RC::LogLevel::Error>(STR("{} in config.json was missing, resetting to default.\n"), RC::to_generic_string(Key));
+            OutValue = DefaultValue;
+            return false;
+        }
+        else
+        {
+            if (!Data.at(Key).is_boolean())
+            {
+                PS::Log<RC::LogLevel::Error>(STR("{} in config.json wasn't a boolean, resetting to default.\n"), RC::to_generic_string(Key));
+                OutValue = DefaultValue;
+                return false;
+            }
+        }
+
+        OutValue = Data[Key].get<bool>();
+        return true;
     }
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <unordered_set>
 
 namespace PS {
     class PSConfig {
@@ -8,13 +9,22 @@ namespace PS {
         static void Load();
 
         static std::string GetLanguageOverride();
-        
-        static bool IsExperimentalBlueprintSupportEnabled();
+
+        static bool IsAutoReloadEnabled();
     private:
-        static inline std::unique_ptr<PSConfig> m_config;
-    public:
+        static inline std::unique_ptr<PSConfig> s_config;
+
+        static inline std::unordered_set<std::string> s_deprecatedValues = {
+            "enableExperimentalBlueprintSupport"
+        };
     private:
         std::string m_languageOverride = "";
-        bool m_enableExperimentalBlueprintSupport = false;
+        bool m_enableAutoReload = false;
+
+        static bool TryRemoveDeprecatedValues(nlohmann::ordered_json& Data);
+
+        static bool GetString(const nlohmann::ordered_json& Data, const std::string& Key, const std::string& DefaultValue, std::string& OutValue);
+
+        static bool GetBool(const nlohmann::ordered_json& Data, const std::string& Key, const bool& DefaultValue, bool& OutValue);
     };
 }

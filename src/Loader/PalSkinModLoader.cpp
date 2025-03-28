@@ -20,7 +20,7 @@ using namespace RC::Unreal;
 UClass* PalSkinDataPalCharacterClass = nullptr;
 
 namespace Palworld {
-	PalSkinModLoader::PalSkinModLoader() {}
+	PalSkinModLoader::PalSkinModLoader() : PalModLoaderBase("skins") {}
 
 	PalSkinModLoader::~PalSkinModLoader() {}
 

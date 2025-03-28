@@ -10,6 +10,12 @@ namespace UECustom {
 
 namespace Palworld {
 	class PalRawTableLoader : public PalModLoaderBase {
+        struct LoadResult {
+            int SuccessfulModifications = 0;
+            int SuccessfulAdditions = 0;
+            int SuccessfulDeletions = 0;
+            int ErrorCount = 0;
+        };
 	public:
 		PalRawTableLoader();
 
@@ -17,10 +23,17 @@ namespace Palworld {
 
 		void Initialize();
 
-		virtual void Load(const nlohmann::json& json) override final;
-	private:
-		UECustom::UDataTable* GetTable(const RC::StringType& TableName);
+        void Apply(UECustom::UDataTable* Table);
 
-		std::unordered_map<RC::StringType, UECustom::UDataTable*> m_cachedTables;
+        void Apply(const nlohmann::json& Data, UECustom::UDataTable* Table, LoadResult& OutResult);
+
+		virtual void Load(const nlohmann::json& Data) override final;
+
+        void Reload(const nlohmann::json& Data);
+    private:
+        std::unordered_map<RC::StringType, std::vector<nlohmann::json>> m_tableDataMap;
+        std::unordered_map<RC::StringType, UECustom::UDataTable*> m_tableMap;
+
+        void AddData(const RC::StringType& TableName, const nlohmann::json& Data);
 	};
 }

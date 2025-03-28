@@ -17,7 +17,7 @@ using namespace RC;
 using namespace RC::Unreal;
 
 namespace Palworld {
-	PalAppearanceModLoader::PalAppearanceModLoader()
+	PalAppearanceModLoader::PalAppearanceModLoader() : PalModLoaderBase("appearance")
 	{
 	}
 

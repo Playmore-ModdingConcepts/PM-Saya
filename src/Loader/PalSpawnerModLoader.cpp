@@ -15,7 +15,7 @@ using namespace RC;
 using namespace RC::Unreal;
 
 namespace Palworld {
-	PalSpawnerModLoader::PalSpawnerModLoader() {}
+	PalSpawnerModLoader::PalSpawnerModLoader() : PalModLoaderBase("spawners") {}
 
 	PalSpawnerModLoader::~PalSpawnerModLoader() {}
 

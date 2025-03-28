@@ -8,8 +8,19 @@ namespace UECustom {
     class TSoftObjectPtr
     {
     public:
+        FORCEINLINE TSoftObjectPtr() {};
+
         /** Construct from a soft object path */
         explicit FORCEINLINE TSoftObjectPtr(FSoftObjectPath ObjectPath) : SoftObjectPtr(ObjectPath)
+        {
+        }
+
+        template <
+            class U
+            UE_REQUIRES(std::is_convertible_v<U*, UEType*>)
+        >
+        FORCEINLINE TSoftObjectPtr(const TSoftObjectPtr<U>& Other)
+            : SoftObjectPtr(Other.SoftObjectPtr)
         {
         }
 

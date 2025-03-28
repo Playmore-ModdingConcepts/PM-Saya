@@ -5,7 +5,7 @@ using namespace RC;
 using namespace RC::Unreal;
 
 namespace Palworld {
-	PalHumanModLoader::PalHumanModLoader() {}
+	PalHumanModLoader::PalHumanModLoader() : PalModLoaderBase("npcs") {}
 
 	PalHumanModLoader::~PalHumanModLoader() {}
 

@@ -14,11 +14,11 @@ NOTE: Make sure to check `Add "Open with Code"` for both checkboxes as seen in t
 
 * [UE4SS Palworld](https://github.com/Okaetsu/RE-UE4SS/releases/tag/experimental-palworld) - You'll want to get the linked version rather than the latest one because Palworld did some engine modifications which now requires a `MemberVariableLayout.ini` with UE4SS. If you don't get the linked version you will experience crashes with certain mods and PalSchema is one of them. See issue [here](https://github.com/UE4SS-RE/RE-UE4SS/issues/802). UE4SS is required as PalSchema relies on it.
 
-* [FModel](https://fmodel.app/) - Very useful for exploring Palworld files in general, you'll want this for referencing different data tables in the game. Setup guide for FModel can be found [here](https://pwmodding.wiki/docs/asset-swapping/StartingOut). You only need to do what's on the linked `Starting Out` page. You can skip the 2D, 3D asset related stuff.
+* [FModel](https://fmodel.app/) - Very useful for exploring Palworld files in general, you'll want this for referencing different data tables and assets in the game. Setup guide for FModel can be found [here](https://pwmodding.wiki/docs/asset-swapping/StartingOut). You only need to do what's on the linked `Starting Out` page. You can skip the 2D, 3D asset related stuff.
 
 * [PalSchema](https://github.com/Okaetsu/PalSchema/releases) - You'll obviously need PalSchema itself. Make sure you get the PalSchema_x.x.x_Dev-beta version where x.x.x is the latest version available.
 
-Installation guide for PalSchema can be found in the repository's [README.md](https://github.com/Okaetsu/PalSchema/blob/main/README.md) file.
+Installation guide for PalSchema can be found in [here](./installation.mdx).
 
 ## Setting Up
 
@@ -56,7 +56,7 @@ If we take a look inside the examples folder, we'll see the following folders in
 
 * skins - Pal skins and any other future skin types like buildings, weapons, etc.
 
-* translations - This is where translations for anything in the game goes and you can specify which language the translation is for by naming the folder after any of the localizations listed in the L10N folder of Palworld. Current available localizations are de, en, es, fr, it, ko, pt-BR, ru, zh-Hans and zh-Hant.
+* translations - This is where translations for anything in the game goes and you can specify which language the translation is for by naming the folder after any of the localizations listed in the L10N folder of Palworld or you can also do custom localization. Palworld natively supports de, en, es, fr, it, ko, pt-BR, ru, zh-Hans, zh-Hant and you can easily add support for other unsupported languages with custom localization mods.
 
 Any mod that isn't a raw data table mod has some convenience logic behind them to make it so that you can edit multiple data tables without having to reference those other tables. You also get some neat autocompletion, detailed descriptions of each field and error checking.
 

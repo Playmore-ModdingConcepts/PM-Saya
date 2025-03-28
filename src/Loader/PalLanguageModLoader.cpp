@@ -13,7 +13,7 @@ using namespace RC;
 using namespace RC::Unreal;
 
 namespace Palworld {
-	PalLanguageModLoader::PalLanguageModLoader() {}
+	PalLanguageModLoader::PalLanguageModLoader() : PalModLoaderBase("translations") {}
 
 	PalLanguageModLoader::~PalLanguageModLoader() {}
 

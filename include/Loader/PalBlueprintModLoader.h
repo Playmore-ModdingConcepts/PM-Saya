@@ -14,18 +14,22 @@ namespace Palworld {
 
         ~PalBlueprintModLoader();
 
+        // Calls UE functions, make sure unreal has done init
         virtual void Load(const nlohmann::json& Data) override final;
 
+        // Does not call UE functions, therefore safe to call whenever
+        void LoadSafe(const nlohmann::json& Data);
+
         void Initialize();
-    private:
-        static inline std::unordered_map<RC::Unreal::FName, PalBlueprintMod> BPModRegistry;
 
-        static PalBlueprintMod& GetMod(const RC::Unreal::FName& Name);
+        void OnPostLoadDefaultObject(RC::Unreal::UClass* This, RC::Unreal::UObject* DefaultObject);
+    private:
+        std::unordered_map<RC::StringType, std::vector<PalBlueprintMod>> BPModRegistry;
+
+        std::vector<PalBlueprintMod>& GetModsForBlueprint(const RC::StringType& Name);
         
-        static void ApplyMod(const PalBlueprintMod& BPMod, RC::Unreal::UObject* Object);
-    private:
-        static void PostLoadDefaultObject(RC::Unreal::UClass* This, RC::Unreal::UObject* DefaultObject);
+        void ApplyMod(const PalBlueprintMod& BPMod, RC::Unreal::UObject* Object);
 
-        static inline SafetyHookInline PostLoadDefaultObject_Hook;
+        void ApplyMod(const nlohmann::json& Data, RC::Unreal::UObject* Object);
     };
 }

@@ -7,6 +7,10 @@ namespace UECustom {
     class TPersistentObjectPtr
     {
     public:
+        explicit TPersistentObjectPtr()
+        {
+        }
+
         explicit TPersistentObjectPtr(const TObjectID& InObjectID)
             : WeakPtr()
             , ObjectID(InObjectID)
