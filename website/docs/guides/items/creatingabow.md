@@ -12,11 +12,9 @@ sidebar_position: 1
 
 - Basic understanding of how to use Unreal Engine, there are a ton of tutorials for it and they apply to modding all the same.
 
-## Creating a Bow
-
 After you're done setting up everything, launch the Palworld Modding Kit and let's get started.
 
-### Setup
+## Setup
 
 1. Create the following folder structure: `Pal > Blueprint > MyNewWeaponMod > Blueprint`
 
@@ -52,7 +50,7 @@ After you're done setting up everything, launch the Palworld Modding Kit and let
 
     ![](assets/new_arrow.png)
 
-### The Arrow
+## The Arrow
 
 1. Open the `BP_ArrowMeteor` blueprint and once the window is open, select `Open Full Blueprint Editor`. You should now have the Event Graph open.
 
@@ -98,7 +96,7 @@ After you're done setting up everything, launch the Palworld Modding Kit and let
 
     ![](assets/save_and_compile.png)
 
-### The Bow
+## The Bow
 
 We're almost done with our new weapon, we just need to change few things in the `BP_BowMeteor` blueprint we created earlier in this guide and we can start packaging the project.
 
@@ -124,7 +122,7 @@ We're almost done with our new weapon, we just need to change few things in the 
 
 5. Done. Hit Compile and Save on `BP_ArrowMeteor` and let's get packaging.
 
-### Packaging and Installing the Mod
+## Packaging and Installing the Mod
 
 We're finally done in the editor and can begin packaging our new mod, so let's do that.
 
@@ -146,7 +144,7 @@ We're finally done in the editor and can begin packaging our new mod, so let's d
 
 5. Done.
 
-### Pal Schema
+## Pal Schema
 
 Now, to make sure our new Bow is actually usable in the game, we'll have to create a PalSchema mod for it. If you haven't yet, go through the [Getting Started](../../gettingstarted.md) guide first and then come back to this part as it will explain the basics of PalSchema and how it works.
 
@@ -227,7 +225,7 @@ Success! We've made our first custom weapon in Palworld. I'll include a little v
   allowfullscreen>
 </iframe>
 
-### Final Notes
+## Final Notes
 
 You might be wondering, how would I do this on Game Pass since the asset format is different (ucas, utoc, pak)? You can simply just go into `Edit > Project Settings > Packaging` and enable the `Use Io Store` checkbox. Make sure to disable it whenever you're packaging for Steam.
 
