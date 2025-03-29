@@ -19,28 +19,13 @@ public:
     PalSchema() : CppUserModBase()
     {
         ModName = STR("PalSchema");
-        ModVersion = STR("0.3.0");
+        ModVersion = STR("0.3.2");
         ModDescription = STR("Allows modifying of Palworld's DataTables and DataAssets dynamically.");
         ModAuthors = STR("Okaetsu");
 
         PS::PSConfig::Load();
         Palworld::SignatureManager::Initialize();
         MainLoader.PreInitialize();
-
-        register_tab(STR("Pal Schema"), [](CppUserModBase* instance) {
-            auto mod = dynamic_cast<PalSchema*>(instance);
-            if (!mod)
-            {
-                return;
-            }
-
-            if (ImGui::Button("Reload Schema Mods"))
-            {
-                UECustom::AsyncTask(UECustom::ENamedThreads::GameThread, [mod]() {
-                    mod->reload_mods();
-                });
-            }
-        });
 
         PS::Log<RC::LogLevel::Verbose>(STR("{} v{} by {} loaded.\n"), ModName, ModVersion, ModAuthors);
     }
@@ -56,7 +41,25 @@ public:
 
     auto on_ui_init() -> void override
     {
-        UE4SS_ENABLE_IMGUI()
+        if (UE4SSProgram::settings_manager.Debug.DebugConsoleVisible)
+        {
+            UE4SS_ENABLE_IMGUI()
+
+            register_tab(STR("Pal Schema"), [](CppUserModBase* instance) {
+                auto mod = dynamic_cast<PalSchema*>(instance);
+                if (!mod)
+                {
+                    return;
+                }
+
+                if (ImGui::Button("Reload Schema Mods"))
+                {
+                    UECustom::AsyncTask(UECustom::ENamedThreads::GameThread, [mod]() {
+                        mod->reload_mods();
+                    });
+                }
+            });
+        }
     }
 
     auto on_update() -> void override
