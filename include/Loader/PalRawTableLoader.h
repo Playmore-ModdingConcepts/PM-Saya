@@ -27,12 +27,18 @@ namespace Palworld {
 
         void Apply(const nlohmann::json& Data, UECustom::UDataTable* Table, LoadResult& OutResult);
 
+        void ApplyLate();
+
 		virtual void Load(const nlohmann::json& Data) override final;
 
         void Reload(const nlohmann::json& Data);
+
+        void SetIsUnrealReady(bool IsReady);
     private:
         std::unordered_map<RC::StringType, std::vector<nlohmann::json>> m_tableDataMap;
         std::unordered_map<RC::StringType, UECustom::UDataTable*> m_tableMap;
+
+        bool m_isUnrealReady = false;
 
         void AddData(const RC::StringType& TableName, const nlohmann::json& Data);
 	};
