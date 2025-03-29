@@ -42,19 +42,23 @@ namespace Palworld {
             Name.erase(Pos);
         }
 
-        auto It = m_tableDataMap.find(Name);
-        if (It != m_tableDataMap.end())
+        if (m_isUnrealReady)
         {
-            LoadResult Result{};
-
-            for (auto& Data : It->second)
+            auto It = m_tableDataMap.find(Name);
+            if (It != m_tableDataMap.end())
             {
-                Apply(Data, Table, Result);
-            }
+                LoadResult Result{};
 
-            PS::Log<LogLevel::Normal>(STR("{}: {} rows updated, {} rows added, {} rows deleted, {} error{}.\n"), 
-                                      Name, Result.SuccessfulModifications, Result.SuccessfulAdditions,
-                                      Result.SuccessfulDeletions, Result.ErrorCount, Result.ErrorCount > 1 || Result.ErrorCount == 0 ? STR("s") : STR(""));
+                for (auto& Data : It->second)
+                {
+                    Apply(Data, Table, Result);
+                }
+
+                PS::Log<LogLevel::Normal>(STR("{}: {} rows updated, {} rows added, {} rows deleted, {} error{}.\n"),
+                    Name, Result.SuccessfulModifications, Result.SuccessfulAdditions,
+                    Result.SuccessfulDeletions, Result.ErrorCount, Result.ErrorCount > 1 || Result.ErrorCount == 0 ? STR("s") : STR(""));
+            }
+            m_tableDataMap.erase(Name);
         }
     }
 
@@ -152,6 +156,28 @@ namespace Palworld {
         }
     }
 
+    void PalRawTableLoader::ApplyLate()
+    {
+        for (auto& [Name, Table] : m_tableMap)
+        {
+            auto It = m_tableDataMap.find(Name);
+            if (It != m_tableDataMap.end())
+            {
+                LoadResult Result{};
+
+                for (auto& Data : It->second)
+                {
+                    Apply(Data, Table, Result);
+                }
+
+                PS::Log<LogLevel::Normal>(STR("{}: {} rows updated, {} rows added, {} rows deleted, {} error{}.\n"),
+                    Name, Result.SuccessfulModifications, Result.SuccessfulAdditions,
+                    Result.SuccessfulDeletions, Result.ErrorCount, Result.ErrorCount > 1 || Result.ErrorCount == 0 ? STR("s") : STR(""));
+            }
+            m_tableDataMap.erase(Name);
+        }
+    }
+
 	void PalRawTableLoader::Load(const nlohmann::json& Data)
 	{
         for (auto& [table_key, table_data] : Data.items())
@@ -179,6 +205,11 @@ namespace Palworld {
                     Result.SuccessfulDeletions, Result.ErrorCount, Result.ErrorCount > 1 || Result.ErrorCount == 0 ? STR("s") : STR(""));
             }
         }
+    }
+
+    void PalRawTableLoader::SetIsUnrealReady(bool IsReady)
+    {
+        m_isUnrealReady = IsReady;
     }
 
     void PalRawTableLoader::AddData(const RC::StringType& TableName, const nlohmann::json& Data)

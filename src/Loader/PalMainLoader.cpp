@@ -88,6 +88,9 @@ namespace Palworld {
                 reinterpret_cast<void*>(InitGameState));
 
             InitGameStateCallbacks.push_back([&](AGameModeBase* Instance) {
+                RawTableLoader.SetIsUnrealReady(true);
+                RawTableLoader.ApplyLate();
+
                 LanguageModLoader.Initialize();
                 MonsterModLoader.Initialize();
                 HumanModLoader.Initialize();
@@ -95,7 +98,6 @@ namespace Palworld {
                 BuildingModLoader.Initialize();
                 ItemModLoader.Initialize();
                 SkinModLoader.Initialize();
-                RawTableLoader.Initialize();
 
                 Load();
             });
