@@ -7,12 +7,11 @@
 #include "Loader/PalMainLoader.h"
 #include "Utility/Config.h"
 #include "Utility/Logging.h"
+#include <SDK/Classes/Async.h>
 #include "SDK/Classes/UDataTable.h"
 #include "SDK/Classes/PalUtility.h"
 #include "SDK/PalSignatures.h"
 #include "UE4SSProgram.hpp"
-#include <FileWatch.hpp>
-#include <SDK/Classes/Async.h>
 
 using namespace RC;
 using namespace RC::Unreal;
@@ -472,12 +471,12 @@ namespace Palworld {
 
     void PalMainLoader::PostLoadDefaultObject(UClass* This, UObject* DefaultObject)
     {
-        PostLoadDefaultObject_Hook.call(This, DefaultObject);
-
         for (auto& Callback : PostLoadDefaultObjectCallbacks)
         {
             Callback(This, DefaultObject);
         }
+
+        PostLoadDefaultObject_Hook.call(This, DefaultObject);
     }
 
     void PalMainLoader::InitGameState(AGameModeBase* This)
