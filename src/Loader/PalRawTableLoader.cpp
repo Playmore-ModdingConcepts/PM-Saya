@@ -42,7 +42,11 @@ namespace Palworld {
             Name.erase(Pos);
         }
 
-        if (m_isUnrealReady)
+        // Temporary fix for DT_PassiveSkill_Main
+        // "AddPal" and similar boolean flags are stored in BP_PalPassiveSkillManager and with current Pal Schema logic, it does not load DT_PassiveSkill_Main early enough.
+        // This results in Pals not being able to obtain customized Passives despite the "AddPal" being set to true in the Data Table.
+        // Proper fix will most likely have to wait for FScriptMapHelper addition.
+        if (m_isUnrealReady || Name == STR("DT_PassiveSkill_Main"))
         {
             auto It = m_tableDataMap.find(Name);
             if (It != m_tableDataMap.end())
