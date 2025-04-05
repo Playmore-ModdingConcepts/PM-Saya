@@ -178,7 +178,7 @@ namespace Palworld {
     {
         m_fileWatch = std::make_unique<filewatch::FileWatch<std::wstring>>(
             fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PalSchema" / "mods",
-            std::wregex(L".*\\.json"),
+            std::wregex(L".*\\.(json|jsonc)"),
             [&](const std::wstring& path, const filewatch::Event change_type) {
                 if (change_type == filewatch::Event::modified)
                 {
