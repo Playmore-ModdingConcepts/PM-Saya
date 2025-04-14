@@ -23,7 +23,7 @@ I'll only include one mod per author to avoid cluttering the list too much.
 
 [Faster Yakumo for PalSchema](https://www.nexusmods.com/palworld/mods/2207) by MelwenMods
 
-[Schematic Item Icons](https://www.nexusmods.com/palworld/mods/2192) by Primarinabee
+[Pal Fusion Mod](https://www.nexusmods.com/palworld/mods/2384) by Primarinabee
 
 [Male Probability 50 for All Pals](https://www.nexusmods.com/palworld/mods/2285) by ZeroRin00
 
