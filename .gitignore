@@ -6,3 +6,7 @@ vsxmake2022/
 
 # Visual Studio
 .vs/
+
+# Resource Files
+*.aps
+RC*
