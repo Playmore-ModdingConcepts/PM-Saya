@@ -147,4 +147,4 @@ Here's an example of suggestions as well:
 
 ![alt text](assets/congratulations.png)
 
-Success! We've created our first new item in Palworld! Now keep in mind that if you have any modded items in your world and you remove the mod, your world will not be playable anymore until you add the mod back in and remove those items.
+Success! We've created our first new item in Palworld! Now keep in mind that if you have any modded items in your world and you remove the mod, your world will not be playable anymore.
