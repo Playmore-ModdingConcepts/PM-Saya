@@ -48,7 +48,7 @@ namespace Palworld {
                 auto DefaultObject = static_cast<UClass*>(Asset)->GetClassDefaultObject();
                 ApplyMod(BlueprintData, DefaultObject);
 
-                PS::Log<RC::LogLevel::Normal>(STR("Applied modifications to {}\n"), static_cast<UClass*>(Asset)->GetNamePrivate().ToString());
+                PS::Log<RC::LogLevel::Normal>(STR("Applied changes to {}\n"), static_cast<UClass*>(Asset)->GetNamePrivate().ToString());
             }
         }
     }
@@ -143,27 +143,35 @@ namespace Palworld {
                 if (!ObjectValue)
                 {
                     // null Object means that this property could be a component template, so we should check if it has an associated GEN_VARIABLE.
-                    ModifyBlueprintComponent(Class, PropertyNameWide, PropertyValue);
+                    HandleInheritableComponent(Class, PropertyNameWide, PropertyValue);
                 }
                 else
                 {
                     // Object has a pointer assigned to it so we let PropertyHelper handle it.
-                    Palworld::PropertyHelper::CopyJsonValueToContainer(Object, Property, PropertyValue);
+                    PropertyHelper::CopyJsonValueToContainer(Object, Property, PropertyValue);
                 }
             }
             else
             {
                 // Any other property values get handled here like Numeric, Bool, String, etc.
-                Palworld::PropertyHelper::CopyJsonValueToContainer(Object, Property, PropertyValue);
+                PropertyHelper::CopyJsonValueToContainer(Object, Property, PropertyValue);
             }
         }
     }
 
-    void PalBlueprintModLoader::ModifyBlueprintComponent(UECustom::UBlueprintGeneratedClass* BPClass, const RC::StringType& ComponentName, 
+    void PalBlueprintModLoader::HandleInheritableComponent(UECustom::UBlueprintGeneratedClass* BPClass, const RC::StringType& ComponentName,
                                                          const nlohmann::json& ComponentData)
     {
+        auto BPClassName = BPClass->GetNamePrivate().ToString();
+
+        if (!ComponentData.is_object())
+        {
+            PS::Log<LogLevel::Warning>(STR("{} failed to apply, provided JSON value wasn't an object\n"), BPClassName);
+            return;
+        }
+
         auto ComponentFullName = std::format(STR("{}_GEN_VARIABLE"), ComponentName);
-        UObject* ComponentTemplate = nullptr;
+        UObject* InheritableComponent = nullptr;
 
         auto InheritableComponentHandler = BPClass->GetInheritableComponentHandler();
         if (InheritableComponentHandler)
@@ -175,42 +183,80 @@ namespace Palworld {
 
                 if (Record.ComponentTemplate.Get()->GetName() == ComponentFullName)
                 {
-                    ComponentTemplate = Record.ComponentTemplate.Get();
+                    InheritableComponent = Record.ComponentTemplate.Get();
+                    break;
                 }
             }
         }
 
-        if (ComponentTemplate)
+        if (InheritableComponent)
         {
-            if (ComponentData.is_object())
+            ModifyComponent(InheritableComponent, ComponentData);
+            return;
+        }
+
+        // Component wasn't inside Inheritable Components list, so check SimpleConstructionScript next.
+        HandleNodeComponent(BPClass, ComponentFullName, ComponentData);
+    }
+
+    void PalBlueprintModLoader::HandleNodeComponent(UECustom::UBlueprintGeneratedClass* BPClass, const RC::StringType& ComponentName, const nlohmann::json& ComponentData)
+    {
+        auto SimpleConstructionScript = BPClass->GetSimpleConstructionScript();
+        if (!SimpleConstructionScript)
+        {
+            return;
+        }
+
+        UObject* NodeComponent = nullptr;
+
+        auto Nodes = SimpleConstructionScript->GetAllNodes();
+        for (auto& NodeElement : Nodes)
+        {
+            auto NodeComponentTemplate = NodeElement->GetComponentTemplate();
+            if (!NodeComponentTemplate)
             {
-                for (auto& [InnerKey, InnerValue] : ComponentData.items())
-                {
-                    auto ComponentPropertyName = RC::to_generic_string(InnerKey);
-                    auto ComponentProperty = ComponentTemplate->GetPropertyByNameInChain(ComponentPropertyName.c_str());
-                    if (ComponentProperty)
-                    {
-                        Palworld::PropertyHelper::CopyJsonValueToContainer(ComponentTemplate, ComponentProperty, InnerValue);
-                    }
-                    else
-                    {
-                        auto BPClassName = BPClass->GetNamePrivate().ToString();
-                        PS::Log<LogLevel::Warning>(STR("Property {} doesn't exist in {}\n"), ComponentPropertyName, BPClassName);
-                    }
-                }
+                continue;
             }
-            else
+
+            if (NodeComponentTemplate->GetName() == ComponentName)
             {
-                auto BPClassName = BPClass->GetNamePrivate().ToString();
-                PS::Log<LogLevel::Warning>(STR("{} failed to apply, provided JSON value wasn't an object\n"), BPClassName);
+                NodeComponent = NodeComponentTemplate;
+                break;
             }
+        }
+
+        if (!NodeComponent)
+        {
+            return;
+        }
+
+        ModifyComponent(NodeComponent, ComponentData);
+    }
+
+    void PalBlueprintModLoader::ModifyComponent(RC::Unreal::UObject* Component, const nlohmann::json& ComponentData)
+    {
+        int SuccessfulChanges = 0;
+        for (auto& [InnerKey, InnerValue] : ComponentData.items())
+        {
+            auto ComponentPropertyName = RC::to_generic_string(InnerKey);
+            auto ComponentProperty = Component->GetPropertyByNameInChain(ComponentPropertyName.c_str());
+            if (!ComponentProperty)
+            {
+                PS::Log<LogLevel::Warning>(STR("Property {} doesn't exist in {}\n"), ComponentPropertyName, Component->GetName());
+                continue;
+            }
+
+            PropertyHelper::CopyJsonValueToContainer(Component, ComponentProperty, InnerValue);
+            SuccessfulChanges++;
+        }
+
+        if (SuccessfulChanges > 0)
+        {
+            PS::Log<LogLevel::Normal>(STR("Applied changes to {}\n"), Component->GetName());
         }
         else
         {
-            // Leaving this here for now until I can confirm this isn't necessary for anything.
-            // I can't think of cases where this would be useful to keep.
-            auto BPClassName = BPClass->GetNamePrivate().ToString();
-            PS::Log<LogLevel::Verbose>(STR("ModifyBlueprintComponent -> {} in {}.\n"), ComponentName, BPClassName);
+            PS::Log<LogLevel::Normal>(STR("No changes were made to {}\n"), Component->GetName());
         }
     }
 }
