@@ -11,10 +11,13 @@ I will present an example of a default config.json after it has been generated a
 ```json
 {
     "languageOverride": "",
-    "enableAutoReload": false
+    "enableAutoReload": false,
+    "enableDebugLogging": false
 }
 ```
 
 `languageOverride` can be used to load custom translation mods for languages that the game doesn't normally support, this could in theory be anything, but it's preferred to follow the [ISO-639](https://en.wikipedia.org/wiki/List_of_ISO_639_language_codes) two-letter codes. If it's a made up language like pirate speak for example then you can just do `pirate`. Setting `languageOverride` to `""` will default to using whatever language Steam is set to.
 
 `enableAutoReload` is used to enable or disable automatic reloading of schema mods in-game when you save the mod file you're editing. This is mainly meant for Pal Schema mod developers. Defaults to `false`.
+
+`enableDebugLogging` is used to enable or disable more detailed logs for debugging purposes. Defaults to `false`.
