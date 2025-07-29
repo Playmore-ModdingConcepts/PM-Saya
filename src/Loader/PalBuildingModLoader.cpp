@@ -3,7 +3,7 @@
 #include "Unreal/FProperty.hpp"
 #include "Helpers/String.hpp"
 #include "SDK/Classes/UDataTable.h"
-#include "Utility/DataTableHelper.h"
+#include "SDK/Helper/PropertyHelper.h"
 #include "Utility/Logging.h"
 #include "Loader/PalBuildingModLoader.h"
 
@@ -86,7 +86,7 @@ namespace Palworld {
 		}
 
         auto TableRow = m_mapObjectMasterDataTable->FindRowUnchecked(BuildingId);
-        auto TableRowStruct = m_mapObjectMasterDataTable->GetRowStruct().UnderlyingObjectPointer;
+        auto TableRowStruct = m_mapObjectMasterDataTable->GetRowStruct().Get();
         if (TableRow)
         {
             try
@@ -102,7 +102,7 @@ namespace Palworld {
 
                     if (Data.contains(PropertyName))
                     {
-                        DataTableHelper::CopyJsonValueToTableRow(TableRow, Property, Data.at(PropertyName));
+                        PropertyHelper::CopyJsonValueToContainer(TableRow, Property, Data.at(PropertyName));
                     }
                 }
             }
@@ -128,7 +128,7 @@ namespace Palworld {
 
                     if (Data.contains(PropertyName))
                     {
-                        DataTableHelper::CopyJsonValueToTableRow(RowData, Property, Data.at(PropertyName));
+                        PropertyHelper::CopyJsonValueToContainer(RowData, Property, Data.at(PropertyName));
                     }
                 }
 
@@ -179,7 +179,7 @@ namespace Palworld {
 	void PalBuildingModLoader::SetupBuildData(const RC::Unreal::FName& BuildingId, const nlohmann::json& Data)
 	{
         auto TableRow = m_buildObjectDataTable->FindRowUnchecked(BuildingId);
-        auto TableRowStruct = m_buildObjectDataTable->GetRowStruct().UnderlyingObjectPointer;
+        auto TableRowStruct = m_buildObjectDataTable->GetRowStruct().Get();
         if (TableRow)
         {
             try
@@ -196,7 +196,7 @@ namespace Palworld {
 
                     if (Data.contains(PropertyName))
                     {
-                        DataTableHelper::CopyJsonValueToTableRow(TableRow, Property, Data.at(PropertyName));
+                        PropertyHelper::CopyJsonValueToContainer(TableRow, Property, Data.at(PropertyName));
                     }
                 }
             }
@@ -237,7 +237,7 @@ namespace Palworld {
 
                     if (Data.contains(PropertyName))
                     {
-                        DataTableHelper::CopyJsonValueToTableRow(RowData, Property, Data.at(PropertyName));
+                        PropertyHelper::CopyJsonValueToContainer(RowData, Property, Data.at(PropertyName));
                     }
                 }
 
@@ -256,7 +256,7 @@ namespace Palworld {
         if (Data.contains("IconTexture"))
         {
             auto TableRow = m_buildObjectIconDataTable->FindRowUnchecked(BuildingId);
-            auto TableRowStruct = m_buildObjectIconDataTable->GetRowStruct().UnderlyingObjectPointer;
+            auto TableRowStruct = m_buildObjectIconDataTable->GetRowStruct().Get();
             if (TableRow)
             {
                 try
@@ -264,7 +264,7 @@ namespace Palworld {
                     auto Property = TableRowStruct->GetPropertyByNameInChain(STR("SoftIcon"));
                     if (Property)
                     {
-                        DataTableHelper::CopyJsonValueToTableRow(TableRow, Property, Data.at("IconTexture"));
+                        PropertyHelper::CopyJsonValueToContainer(TableRow, Property, Data.at("IconTexture"));
                     }
                 }
                 catch (const std::exception& e)
@@ -281,7 +281,7 @@ namespace Palworld {
                     auto Property = TableRowStruct->GetPropertyByNameInChain(STR("SoftIcon"));
                     if (Property)
                     {
-                        DataTableHelper::CopyJsonValueToTableRow(RowData, Property, Data.at("IconTexture"));
+                        PropertyHelper::CopyJsonValueToContainer(RowData, Property, Data.at("IconTexture"));
                         m_buildObjectIconDataTable->AddRow(BuildingId, *reinterpret_cast<UECustom::FTableRowBase*>(RowData));
                     }
                 }
@@ -327,7 +327,7 @@ namespace Palworld {
             throw std::runtime_error(RC::fmt("Assignment in Row '%S' must contain a WorkActionType field", BuildingId.ToString().c_str()));
         }
 
-        auto TableRowStruct = m_mapObjectAssignData->GetRowStruct().UnderlyingObjectPointer;
+        auto TableRowStruct = m_mapObjectAssignData->GetRowStruct().Get();
         auto RowData = FMemory::Malloc(TableRowStruct->GetStructureSize());
         TableRowStruct->InitializeStruct(RowData);
 
@@ -336,7 +336,7 @@ namespace Palworld {
             auto PropertyName = RC::to_string(Property->GetName());
             if (Data.contains(PropertyName))
             {
-                DataTableHelper::CopyJsonValueToTableRow(RowData, Property, Data.at(PropertyName));
+                PropertyHelper::CopyJsonValueToContainer(RowData, Property, Data.at(PropertyName));
             }
         }
 
@@ -348,7 +348,7 @@ namespace Palworld {
 	void PalBuildingModLoader::SetupCropData(const RC::Unreal::FName& BuildingId, const nlohmann::json& Data)
 	{
         auto TableRow = m_mapObjectFarmCrop->FindRowUnchecked(BuildingId);
-        auto TableRowStruct = m_mapObjectFarmCrop->GetRowStruct().UnderlyingObjectPointer;
+        auto TableRowStruct = m_mapObjectFarmCrop->GetRowStruct().Get();
         if (TableRow)
         {
             try
@@ -358,7 +358,7 @@ namespace Palworld {
                     auto PropertyName = RC::to_string(Property->GetName());
                     if (Data.contains(PropertyName))
                     {
-                        DataTableHelper::CopyJsonValueToTableRow(TableRow, Property, Data.at(PropertyName));
+                        PropertyHelper::CopyJsonValueToContainer(TableRow, Property, Data.at(PropertyName));
                     }
                 }
             }
@@ -379,7 +379,7 @@ namespace Palworld {
                     auto PropertyName = RC::to_string(Property->GetName());
                     if (Data.contains(PropertyName))
                     {
-                        DataTableHelper::CopyJsonValueToTableRow(RowData, Property, Data.at(PropertyName));
+                        PropertyHelper::CopyJsonValueToContainer(RowData, Property, Data.at(PropertyName));
                     }
                 }
 
@@ -405,7 +405,7 @@ namespace Palworld {
     void PalBuildingModLoader::SetupTechnologyData(const RC::Unreal::FName& BuildingId, const nlohmann::json& Data)
     {
         auto TableRow = m_technologyRecipeUnlockTable->FindRowUnchecked(BuildingId);
-        auto TableRowStruct = m_technologyRecipeUnlockTable->GetRowStruct().UnderlyingObjectPointer;
+        auto TableRowStruct = m_technologyRecipeUnlockTable->GetRowStruct().Get();
         if (TableRow)
         {
             try
@@ -420,7 +420,7 @@ namespace Palworld {
 
                     if (Data.contains(PropertyName))
                     {
-                        DataTableHelper::CopyJsonValueToTableRow(TableRow, Property, Data.at(PropertyName));
+                        PropertyHelper::CopyJsonValueToContainer(TableRow, Property, Data.at(PropertyName));
                     }
                 }
             }
@@ -458,7 +458,7 @@ namespace Palworld {
 
                     if (Data.contains(PropertyName))
                     {
-                        DataTableHelper::CopyJsonValueToTableRow(RowData, Property, Data.at(PropertyName));
+                        PropertyHelper::CopyJsonValueToContainer(RowData, Property, Data.at(PropertyName));
                     }
                 }
 
@@ -508,7 +508,7 @@ namespace Palworld {
 
     void PalBuildingModLoader::SetupTranslation(const RC::StringType& RowKey, UECustom::UDataTable* DataTable, const nlohmann::json& Value)
     {
-        auto TranslationRowStruct = DataTable->GetRowStruct().UnderlyingObjectPointer;
+        auto TranslationRowStruct = DataTable->GetRowStruct().Get();
         auto TextProperty = TranslationRowStruct->GetPropertyByName(STR("TextData"));
         if (TextProperty)
         {
@@ -517,7 +517,7 @@ namespace Palworld {
             auto ExistingRow = DataTable->FindRowUnchecked(RowKeyName);
             if (ExistingRow)
             {
-                DataTableHelper::CopyJsonValueToTableRow(ExistingRow, TextProperty, Value);
+                PropertyHelper::CopyJsonValueToContainer(ExistingRow, TextProperty, Value);
             }
             else
             {
@@ -526,7 +526,7 @@ namespace Palworld {
 
                 try
                 {
-                    DataTableHelper::CopyJsonValueToTableRow(TranslationRowData, TextProperty, Value);
+                    PropertyHelper::CopyJsonValueToContainer(TranslationRowData, TextProperty, Value);
                     DataTable->AddRow(RowKeyName, *reinterpret_cast<UECustom::FTableRowBase*>(TranslationRowData));
                 }
                 catch (const std::exception& e)
@@ -541,7 +541,7 @@ namespace Palworld {
     void PalBuildingModLoader::ImportJson(const RC::Unreal::FName& BuildingId, const nlohmann::json& Data, UECustom::UDataTable* DataTable)
     {
         auto TableRow = DataTable->FindRowUnchecked(BuildingId);
-        auto TableRowStruct = DataTable->GetRowStruct().UnderlyingObjectPointer;
+        auto TableRowStruct = DataTable->GetRowStruct().Get();
         if (TableRow)
         {
             try
@@ -551,7 +551,7 @@ namespace Palworld {
                     auto PropertyName = RC::to_string(Property->GetName());
                     if (Data.contains(PropertyName))
                     {
-                        DataTableHelper::CopyJsonValueToTableRow(TableRow, Property, Data.at(PropertyName));
+                        PropertyHelper::CopyJsonValueToContainer(TableRow, Property, Data.at(PropertyName));
                     }
                 }
             }
@@ -571,7 +571,7 @@ namespace Palworld {
                     auto PropertyName = RC::to_string(Property->GetName());
                     if (Data.contains(PropertyName))
                     {
-                        DataTableHelper::CopyJsonValueToTableRow(RowData, Property, Data.at(PropertyName));
+                        PropertyHelper::CopyJsonValueToContainer(RowData, Property, Data.at(PropertyName));
                     }
                 }
                 DataTable->AddRow(BuildingId, *reinterpret_cast<UECustom::FTableRowBase*>(RowData));

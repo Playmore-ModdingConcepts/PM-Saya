@@ -7,8 +7,8 @@
 #include "SDK/Classes/TSoftObjectPtr.h"
 #include "SDK/Classes/TSoftClassPtr.h"
 #include "SDK/Structs/FLinearColor.h"
+#include "SDK/Helper/PropertyHelper.h"
 #include "SDK/EnumCache.h"
-#include "Utility/DataTableHelper.h"
 #include "Utility/Logging.h"
 #include "Helpers/String.hpp"
 #include "Loader/PalAppearanceModLoader.h"
@@ -104,7 +104,7 @@ namespace Palworld {
 
 	void PalAppearanceModLoader::Add(const RC::Unreal::FName& RowId, UECustom::UDataTable* DataTable, const nlohmann::json& Data, const std::vector<std::string>& RequiredFields)
 	{
-		auto RowStruct = DataTable->GetRowStruct().UnderlyingObjectPointer;
+		auto RowStruct = DataTable->GetRowStruct().Get();
 
 		for (auto& RequiredField : RequiredFields)
 		{
@@ -128,7 +128,7 @@ namespace Palworld {
 			{
 				try
 				{
-					DataTableHelper::CopyJsonValueToTableRow(RowData, Property, Data.at(PropertyName));
+					PropertyHelper::CopyJsonValueToContainer(RowData, Property, Data.at(PropertyName));
 				}
 				catch (const std::exception& e)
 				{
@@ -143,7 +143,7 @@ namespace Palworld {
 
 	void PalAppearanceModLoader::AddColorPreset(const RC::Unreal::FName& ColorPresetId, const nlohmann::json& Data)
 	{
-		auto ColorPresetRowStruct = m_colorPresetTable->GetRowStruct().UnderlyingObjectPointer;
+		auto ColorPresetRowStruct = m_colorPresetTable->GetRowStruct().Get();
 
 		auto Id = ColorPresetId.ToString();
 		if (Id != STR("Skin") && Id != STR("Hair_Brow") && Id != STR("Eye"))
@@ -176,7 +176,7 @@ namespace Palworld {
 			throw std::runtime_error(std::format("Colors field in {} must be an object", RC::to_string(Id)));
 		}
 
-		DataTableHelper::CopyJsonValueToTableRow(ColorRow, ColorsArrayProperty, Data.at("Colors"));
+		PropertyHelper::CopyJsonValueToContainer(ColorRow, ColorsArrayProperty, Data.at("Colors"));
 	}
 
 	void PalAppearanceModLoader::AddEquipment(const RC::Unreal::FName& EquipmentId, const nlohmann::json& Data)
@@ -222,7 +222,7 @@ namespace Palworld {
 			}
 		}
 
-		auto EquipmentRowStruct = m_equipmentTable->GetRowStruct().UnderlyingObjectPointer;
+		auto EquipmentRowStruct = m_equipmentTable->GetRowStruct().Get();
 
 		auto SkeletalMeshMapProperty = EquipmentRowStruct->GetPropertyByName(STR("SkeletalMeshMap"));
 		if (!SkeletalMeshMapProperty)
@@ -302,7 +302,7 @@ namespace Palworld {
 				throw std::runtime_error("Property IsHairAttachAccessory has changed name in DT_CharacterCreationMeshPresetTable_Equipments, update is required");
 			}
 
-			DataTableHelper::CopyJsonValueToTableRow(EquipmentRowData, IsHairAttachAccessoryProperty, Data.at("IsHairAttachAccessory"));
+			PropertyHelper::CopyJsonValueToContainer(EquipmentRowData, IsHairAttachAccessoryProperty, Data.at("IsHairAttachAccessory"));
 
 			if (Data.at("IsHairAttachAccessory").get<bool>() == true)
 			{

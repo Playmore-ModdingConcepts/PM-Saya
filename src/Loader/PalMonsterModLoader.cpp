@@ -5,8 +5,8 @@
 #include "SDK/Classes/KismetInternationalizationLibrary.h"
 #include "SDK/Structs/FPalCharacterIconDataRow.h"
 #include "SDK/Structs/FPalBPClassDataRow.h"
+#include "SDK/Helper/PropertyHelper.h"
 #include "SDK/EnumCache.h"
-#include "Utility/DataTableHelper.h"
 #include "Utility/Logging.h"
 #include "Helpers/String.hpp"
 #include "Loader/PalMonsterModLoader.h"
@@ -65,7 +65,7 @@ namespace Palworld {
 
 	void PalMonsterModLoader::Add(const RC::Unreal::FName& CharacterId, const nlohmann::json& properties)
 	{
-		auto MonsterRowStruct = m_dataTable->GetRowStruct().UnderlyingObjectPointer;
+		auto MonsterRowStruct = m_dataTable->GetRowStruct().Get();
 		auto MonsterRowData = FMemory::Malloc(MonsterRowStruct->GetStructureSize());
 		MonsterRowStruct->InitializeStruct(MonsterRowData);
 
@@ -95,7 +95,7 @@ namespace Palworld {
 				auto Property = MonsterRowStruct->GetPropertyByName(KeyName.c_str());
 				if (Property)
 				{
-					DataTableHelper::CopyJsonValueToTableRow(MonsterRowData, Property, value);
+					PropertyHelper::CopyJsonValueToContainer(MonsterRowData, Property, value);
 				}
 			}
 		}
@@ -109,7 +109,7 @@ namespace Palworld {
 
 	void PalMonsterModLoader::Edit(uint8_t* TableRow, const RC::Unreal::FName& CharacterId, const nlohmann::json& properties)
 	{
-		auto RowStruct = m_dataTable->GetRowStruct().UnderlyingObjectPointer;
+		auto RowStruct = m_dataTable->GetRowStruct().Get();
 		for (auto& [key, value] : properties.items())
 		{
 			auto KeyName = RC::to_generic_string(key);
@@ -140,7 +140,7 @@ namespace Palworld {
 				auto Property = RowStruct->GetPropertyByName(KeyName.c_str());
 				if (Property)
 				{
-					DataTableHelper::CopyJsonValueToTableRow(TableRow, Property, value);
+					PropertyHelper::CopyJsonValueToContainer(TableRow, Property, value);
 				}
 			}
 		}
@@ -162,7 +162,7 @@ namespace Palworld {
 
 	void PalMonsterModLoader::AddAbilities(const RC::Unreal::FName& CharacterId, const nlohmann::json& properties)
 	{
-		auto RowStruct = m_wazaMasterLevelTable->GetRowStruct().UnderlyingObjectPointer;
+		auto RowStruct = m_wazaMasterLevelTable->GetRowStruct().Get();
 
 		for (auto& [key, value] : properties.items())
 		{
@@ -204,7 +204,7 @@ namespace Palworld {
 			auto WazaIDProperty = RowStruct->GetPropertyByName(STR("WazaID"));
 			if (WazaIDProperty)
 			{
-				DataTableHelper::CopyJsonValueToTableRow(WazaMasterLevelData, WazaIDProperty, value.at("WazaID"));
+				PropertyHelper::CopyJsonValueToContainer(WazaMasterLevelData, WazaIDProperty, value.at("WazaID"));
 			}
 
 			auto LevelProperty = RowStruct->GetPropertyByName(STR("Level"));
@@ -222,7 +222,7 @@ namespace Palworld {
 
 	void PalMonsterModLoader::AddLoot(const RC::Unreal::FName& CharacterId, const nlohmann::json& properties)
 	{
-		auto RowStruct = m_palDropItemTable->GetRowStruct().UnderlyingObjectPointer;
+		auto RowStruct = m_palDropItemTable->GetRowStruct().Get();
 
 		auto PalDropItemData = FMemory::Malloc(RowStruct->GetStructureSize());
 		RowStruct->InitializeStruct(PalDropItemData);
@@ -323,10 +323,10 @@ namespace Palworld {
 			auto Min = loot.at("Min");
 			auto Max = loot.at("Max");
 
-			DataTableHelper::CopyJsonValueToTableRow(PalDropItemData, ItemIdProperty, ItemId);
-			DataTableHelper::CopyJsonValueToTableRow(PalDropItemData, RateProperty, DropChance);
-			DataTableHelper::CopyJsonValueToTableRow(PalDropItemData, MinProperty, Min);
-			DataTableHelper::CopyJsonValueToTableRow(PalDropItemData, MaxProperty, Max);
+			PropertyHelper::CopyJsonValueToContainer(PalDropItemData, ItemIdProperty, ItemId);
+			PropertyHelper::CopyJsonValueToContainer(PalDropItemData, RateProperty, DropChance);
+			PropertyHelper::CopyJsonValueToContainer(PalDropItemData, MinProperty, Min);
+			PropertyHelper::CopyJsonValueToContainer(PalDropItemData, MaxProperty, Max);
 
 			Index++;
 
@@ -345,7 +345,7 @@ namespace Palworld {
 		if (Data.contains("Name"))
 		{
 			auto FixedCharacterId = std::format(STR("PAL_NAME_{}"), CharacterId.ToString());
-			auto TranslationRowStruct = m_palNameTable->GetRowStruct().UnderlyingObjectPointer;
+			auto TranslationRowStruct = m_palNameTable->GetRowStruct().Get();
 			auto TextProperty = TranslationRowStruct->GetPropertyByName(STR("TextData"));
 			if (TextProperty)
 			{
@@ -354,7 +354,7 @@ namespace Palworld {
 
 				try
 				{
-					DataTableHelper::CopyJsonValueToTableRow(TranslationRowData, TextProperty, Data.at("Name"));
+					PropertyHelper::CopyJsonValueToContainer(TranslationRowData, TextProperty, Data.at("Name"));
 				}
 				catch (const std::exception& e)
 				{
@@ -369,7 +369,7 @@ namespace Palworld {
 		if (Data.contains("ShortDescription"))
 		{
 			auto FixedCharacterId = std::format(STR("PAL_SHORT_DESC_{}"), CharacterId.ToString());
-			auto TranslationRowStruct = m_palShortDescTable->GetRowStruct().UnderlyingObjectPointer;
+			auto TranslationRowStruct = m_palShortDescTable->GetRowStruct().Get();
 			auto TextProperty = TranslationRowStruct->GetPropertyByName(STR("TextData"));
 			if (TextProperty)
 			{
@@ -378,7 +378,7 @@ namespace Palworld {
 
 				try
 				{
-					DataTableHelper::CopyJsonValueToTableRow(TranslationRowData, TextProperty, Data.at("ShortDescription"));
+					PropertyHelper::CopyJsonValueToContainer(TranslationRowData, TextProperty, Data.at("ShortDescription"));
 				}
 				catch (const std::exception& e)
 				{
@@ -393,7 +393,7 @@ namespace Palworld {
 		if (Data.contains("LongDescription"))
 		{
 			auto FixedCharacterId = std::format(STR("PAL_LONG_DESC_{}"), CharacterId.ToString());
-			auto TranslationRowStruct = m_palLongDescTable->GetRowStruct().UnderlyingObjectPointer;
+			auto TranslationRowStruct = m_palLongDescTable->GetRowStruct().Get();
 			auto TextProperty = TranslationRowStruct->GetPropertyByName(STR("TextData"));
 			if (TextProperty)
 			{
@@ -402,7 +402,7 @@ namespace Palworld {
 
 				try
 				{
-					DataTableHelper::CopyJsonValueToTableRow(TranslationRowData, TextProperty, Data.at("LongDescription"));
+					PropertyHelper::CopyJsonValueToContainer(TranslationRowData, TextProperty, Data.at("LongDescription"));
 				}
 				catch (const std::exception& e)
 				{
@@ -420,14 +420,14 @@ namespace Palworld {
 		if (Data.contains("Name"))
 		{
 			auto FixedCharacterId = std::format(STR("PAL_NAME_{}"), CharacterId.ToString());
-			auto TranslationRowStruct = m_palNameTable->GetRowStruct().UnderlyingObjectPointer;
+			auto TranslationRowStruct = m_palNameTable->GetRowStruct().Get();
 			auto TextProperty = TranslationRowStruct->GetPropertyByName(STR("TextData"));
 			if (TextProperty)
 			{
 				auto Row = m_palNameTable->FindRowUnchecked(FName(FixedCharacterId, FNAME_Add));
 				if (Row)
 				{
-					DataTableHelper::CopyJsonValueToTableRow(Row, TextProperty, Data.at("Name"));
+					PropertyHelper::CopyJsonValueToContainer(Row, TextProperty, Data.at("Name"));
 				}
 			}
 		}
@@ -435,14 +435,14 @@ namespace Palworld {
 		if (Data.contains("ShortDescription"))
 		{
 			auto FixedCharacterId = std::format(STR("PAL_SHORT_DESC_{}"), CharacterId.ToString());
-			auto TranslationRowStruct = m_palShortDescTable->GetRowStruct().UnderlyingObjectPointer;
+			auto TranslationRowStruct = m_palShortDescTable->GetRowStruct().Get();
 			auto TextProperty = TranslationRowStruct->GetPropertyByName(STR("TextData"));
 			if (TextProperty)
 			{
 				auto Row = m_palShortDescTable->FindRowUnchecked(FName(FixedCharacterId, FNAME_Add));
 				if (Row)
 				{
-					DataTableHelper::CopyJsonValueToTableRow(Row, TextProperty, Data.at("ShortDescription"));
+					PropertyHelper::CopyJsonValueToContainer(Row, TextProperty, Data.at("ShortDescription"));
 				}
 			}
 		}
@@ -450,14 +450,14 @@ namespace Palworld {
 		if (Data.contains("LongDescription"))
 		{
 			auto FixedCharacterId = std::format(STR("PAL_LONG_DESC_{}"), CharacterId.ToString());
-			auto TranslationRowStruct = m_palLongDescTable->GetRowStruct().UnderlyingObjectPointer;
+			auto TranslationRowStruct = m_palLongDescTable->GetRowStruct().Get();
 			auto TextProperty = TranslationRowStruct->GetPropertyByName(STR("TextData"));
 			if (TextProperty)
 			{
 				auto Row = m_palLongDescTable->FindRowUnchecked(FName(FixedCharacterId, FNAME_Add));
 				if (Row)
 				{
-					DataTableHelper::CopyJsonValueToTableRow(Row, TextProperty, Data.at("LongDescription"));
+					PropertyHelper::CopyJsonValueToContainer(Row, TextProperty, Data.at("LongDescription"));
 				}
 			}
 		}
