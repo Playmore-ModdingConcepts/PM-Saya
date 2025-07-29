@@ -12,6 +12,8 @@ namespace PS {
         static std::string GetLanguageOverride();
 
         static bool IsAutoReloadEnabled();
+
+        static bool IsDebugLoggingEnabled();
     private:
         static inline std::unique_ptr<PSConfig> s_config;
 
@@ -21,6 +23,7 @@ namespace PS {
     private:
         std::string m_languageOverride = "";
         bool m_enableAutoReload = false;
+        bool m_enableDebugLogging = false;
 
         static bool TryRemoveDeprecatedValues(nlohmann::ordered_json& Data);
 

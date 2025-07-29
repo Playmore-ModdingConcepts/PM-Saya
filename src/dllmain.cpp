@@ -23,17 +23,21 @@ public:
     PalSchema() : CppUserModBase()
     {
         ModName = STR("PalSchema");
-        ModVersion = STR("0.4.0");
+        ModVersion = STR("0.4.1");
         ModDescription = STR("Allows modifying of Palworld's assets dynamically.");
         ModAuthors = STR("Okaetsu");
 
         PS::PSConfig::Load();
+
+        PS::Log<LogLevel::Verbose>(STR("Initializing SignatureManager...\n"));
         Palworld::SignatureManager::Initialize();
+
+        PS::Log<LogLevel::Verbose>(STR("Initializing UnrealOffsets...\n"));
         Palworld::UnrealOffsets::Initialize();
 
         MainLoader.PreInitialize();
 
-        PS::Log<RC::LogLevel::Verbose>(STR("{} v{} by {} loaded.\n"), ModName, ModVersion, ModAuthors);
+        PS::Log<RC::LogLevel::Normal>(STR("{} v{} by {} loaded.\n"), ModName, ModVersion, ModAuthors);
     }
 
     ~PalSchema() override

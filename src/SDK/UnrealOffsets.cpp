@@ -49,11 +49,16 @@ void Palworld::UnrealOffsets::Initialize()
     Unreal::Version::Major = 5;
     Unreal::Version::Minor = 1;
 
+    PS::Log<LogLevel::Verbose>(STR("Unreal Version set to 5.1.\n"));
+
     FName::ConstructorInternal.assign_address(Palworld::SignatureManager::GetSignature("FName::Constructor"));
     FName::ToStringInternal.assign_address(Palworld::SignatureManager::GetSignature("FName::ToString_Wchar"));
 
     ApplyMemberVariableLayout();
+    PS::Log<LogLevel::Verbose>(STR("MemberVariableLayout applied.\n"));
+
     UnrealInitializer::InitializeVersionedContainer();
+    PS::Log<LogLevel::Verbose>(STR("Versioned Container initialized.\n"));
 }
 
 void Palworld::UnrealOffsets::InitializeGMalloc()
@@ -121,7 +126,7 @@ void Palworld::UnrealOffsets::InitializeGMalloc()
 
     RC::Unreal::GMalloc = *std::bit_cast<RC::Unreal::FMalloc**>(GMallocAddr);
 
-    PS::Log<LogLevel::Normal>(STR("Found GMalloc: {}\n"), static_cast<void*>(GMallocAddr));
+    PS::Log<LogLevel::Verbose>(STR("Found GMalloc: {}\n"), static_cast<void*>(GMallocAddr));
 }
 
 void Palworld::UnrealOffsets::ApplyMemberVariableLayout()

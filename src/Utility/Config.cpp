@@ -34,6 +34,7 @@ namespace PS {
             if (f.fail()) {
                 data["languageOverride"] = "";
                 data["enableAutoReload"] = false;
+                data["enableDebugLogging"] = false;
                 std::ofstream out_file(cwd / "config.json");
                 out_file << data.dump(4);
                 out_file.close();
@@ -52,6 +53,12 @@ namespace PS {
             if (!GetBool(data, "enableAutoReload", false, s_config->m_enableAutoReload))
             {
                 data["enableAutoReload"] = false;
+                ShouldResave = true;
+            }
+
+            if (!GetBool(data, "enableDebugLogging", false, s_config->m_enableDebugLogging))
+            {
+                data["enableDebugLogging"] = false;
                 ShouldResave = true;
             }
 
@@ -99,6 +106,18 @@ namespace PS {
         return "";
     }
 
+    bool PSConfig::IsDebugLoggingEnabled()
+    {
+        if (s_config)
+        {
+            return s_config->m_enableDebugLogging;
+        }
+
+        PS::Log<RC::LogLevel::Error>(STR("PalSchema Config must be initialized first before accessing IsDebugLoggingEnabled!"));
+
+        return false;
+    }
+
     bool PSConfig::TryRemoveDeprecatedValues(nlohmann::ordered_json& Data)
     {
         bool wasDeprecationPerformed = false;
@@ -118,7 +137,7 @@ namespace PS {
     {
         if (!Data.contains(Key))
         {
-            PS::Log<RC::LogLevel::Error>(STR("{} in config.json was missing, resetting to default.\n"), RC::to_generic_string(Key));
+            PS::Log<RC::LogLevel::Warning>(STR("{} in config.json was missing, adding to config.\n"), RC::to_generic_string(Key));
             OutValue = DefaultValue;
             return false;
         }
@@ -126,7 +145,7 @@ namespace PS {
         {
             if (!Data.at(Key).is_string())
             {
-                PS::Log<RC::LogLevel::Error>(STR("{} in config.json wasn't a string, resetting to default.\n"), RC::to_generic_string(Key));
+                PS::Log<RC::LogLevel::Warning>(STR("{} in config.json wasn't a string, fixing.\n"), RC::to_generic_string(Key));
                 OutValue = DefaultValue;
                 return false;
             }
@@ -140,7 +159,7 @@ namespace PS {
     {
         if (!Data.contains(Key))
         {
-            PS::Log<RC::LogLevel::Error>(STR("{} in config.json was missing, resetting to default.\n"), RC::to_generic_string(Key));
+            PS::Log<RC::LogLevel::Warning>(STR("{} in config.json was missing, adding to config.\n"), RC::to_generic_string(Key));
             OutValue = DefaultValue;
             return false;
         }
@@ -148,7 +167,7 @@ namespace PS {
         {
             if (!Data.at(Key).is_boolean())
             {
-                PS::Log<RC::LogLevel::Error>(STR("{} in config.json wasn't a boolean, resetting to default.\n"), RC::to_generic_string(Key));
+                PS::Log<RC::LogLevel::Warning>(STR("{} in config.json wasn't a boolean, fixing.\n"), RC::to_generic_string(Key));
                 OutValue = DefaultValue;
                 return false;
             }

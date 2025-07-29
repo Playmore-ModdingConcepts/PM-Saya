@@ -492,8 +492,10 @@ namespace Palworld {
 
     void PalMainLoader::InitGameState(AGameModeBase* This)
     {
+        PS::Log<LogLevel::Verbose>(STR("Calling Original AGameModeBase::InitGameState\n"));
         InitGameState_Hook.call(This);
 
+        PS::Log<LogLevel::Verbose>(STR("Firing AGameModeBase::InitGameState Callbacks...\n"));
         for (auto& Callback : InitGameStateCallbacks)
         {
             Callback(This);
@@ -501,21 +503,28 @@ namespace Palworld {
 
         auto expected = InitGameState_Hook.disable();
         InitGameState_Hook = {};
+
+        PS::Log<LogLevel::Verbose>(STR("Returning from AGameModeBase::InitGameState...\n"));
     }
 
     int PalMainLoader::EngineLoopInit(void* This)
     {
+        PS::Log<LogLevel::Verbose>(STR("Running FEngineLoop::Init\n"));
+
         for (auto& Callback : EngineLoopPreInitCallbacks)
         {
             Callback(This);
         }
 
+        PS::Log<LogLevel::Verbose>(STR("Calling Original FEngineLoop::Init\n"));
         auto Result = EngineLoopInit_Hook.call<int>(This);
 
         for (auto& Callback : EngineLoopPostInitCallbacks)
         {
             Callback(This);
         }
+
+        PS::Log<LogLevel::Verbose>(STR("Returning from FEngineLoop::Init\n"));
 
         return Result;
     }
