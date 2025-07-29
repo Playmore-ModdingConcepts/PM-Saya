@@ -2,6 +2,7 @@
 
 #include <HAL/Platform.hpp>
 #include <DynamicOutput/DynamicOutput.hpp>
+#include "Utility/Config.h"
 
 namespace PS {
     template <RC::Unreal::int32 optional_arg, typename... FmtArgs>
@@ -19,6 +20,8 @@ namespace PS {
         }
         else if (optional_arg == RC::LogLevel::Verbose)
         {
+            if (!PS::PSConfig::IsDebugLoggingEnabled()) return;
+
             auto formatted_log = std::format(STR("[PalSchema] [debug] {}"), content);
             RC::Output::send<optional_arg>(formatted_log, fmt_args...);
         }
