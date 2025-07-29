@@ -98,6 +98,11 @@ namespace Palworld {
 			throw std::runtime_error(std::format("Unsupported skin type '{}'", Type));
 		}
 
+        if (!DatabaseClass)
+        {
+            throw std::runtime_error(std::format("Failed to set Database Class for '{}'", Type));
+        }
+
 		if (!DatabaseClass->GetPropertyByNameInChain(STR("SkinName")))
 		{
 			throw std::runtime_error("Property 'SkinName' has changed in DA_StaticSkinDataAsset. Update to Pal Schema is needed.");
