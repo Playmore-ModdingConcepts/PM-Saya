@@ -278,7 +278,7 @@ namespace Palworld {
         ValidateJsonValueType(Property, Value);
 
         auto ParsedValue = Value.get<nlohmann::json>();
-        auto ObjectValue = *Property->ContainerPtrToValuePtr<UObject*>(static_cast<void*>(Data));
+        auto ObjectValue = *Property->ContainerPtrToValuePtr<UObject*>(Data);
         if (ObjectValue)
         {
             for (auto& [InnerKey, InnerValue] : Value.items())
@@ -308,7 +308,7 @@ namespace Palworld {
         if (!String.ends_with(STR("_C"))) String += STR("_C");
 
         auto SoftClassPtr = UECustom::TSoftClassPtr<UClass>(UECustom::FSoftObjectPath(String));
-        FMemory::Memcpy(Property->ContainerPtrToValuePtr<void>(Data), &SoftClassPtr, sizeof(UECustom::TSoftClassPtr<UClass>));
+        FMemory::Memcpy(Data, &SoftClassPtr, sizeof(UECustom::TSoftClassPtr<UClass>));
     }
 
     void PropertyHelper::SetSoftObjectPropertyValueFromJsonValue(void* Data, RC::Unreal::FSoftObjectProperty* Property, const nlohmann::json& Value)
