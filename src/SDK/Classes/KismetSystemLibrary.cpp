@@ -12,7 +12,7 @@ namespace UECustom {
 
         if (!Function)
         {
-            PS::Log<LogLevel::Verbose>(STR("Function /Script/Engine.KismetSystemLibrary:MakeSoftObjectPath was invalid.\n"));
+            PS::Log<LogLevel::Error>(STR("Function /Script/Engine.KismetSystemLibrary:MakeSoftObjectPath was invalid.\n"));
             return {};
         }
 
@@ -34,7 +34,7 @@ namespace UECustom {
 
         if (!Function)
         {
-            PS::Log<LogLevel::Verbose>(STR("Function /Script/Engine.KismetSystemLibrary:LoadAsset_Blocking was invalid.\n"));
+            PS::Log<LogLevel::Error>(STR("Function /Script/Engine.KismetSystemLibrary:LoadAsset_Blocking was invalid.\n"));
             return nullptr;
         }
 

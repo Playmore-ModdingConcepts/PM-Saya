@@ -17,6 +17,11 @@ namespace PS {
             auto formatted_log = std::format(STR("[PalSchema] [warning] {}"), content);
             RC::Output::send<optional_arg>(formatted_log, fmt_args...);
         }
+        else if (optional_arg == RC::LogLevel::Verbose)
+        {
+            auto formatted_log = std::format(STR("[PalSchema] [debug] {}"), content);
+            RC::Output::send<optional_arg>(formatted_log, fmt_args...);
+        }
         else
         {
             auto formatted_log = std::format(STR("[PalSchema] {}"), content);
