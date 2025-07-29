@@ -36,6 +36,10 @@ namespace Palworld {
 
         void ApplyMod(const nlohmann::json& Data, RC::Unreal::UObject* Object);
 
-        void ModifyBlueprintComponent(UECustom::UBlueprintGeneratedClass* BPClass, const RC::StringType& ComponentName, const nlohmann::json& ComponentData);
+        void HandleInheritableComponent(UECustom::UBlueprintGeneratedClass* BPClass, const RC::StringType& ComponentName, const nlohmann::json& ComponentData);
+
+        void HandleNodeComponent(UECustom::UBlueprintGeneratedClass* BPClass, const RC::StringType& ComponentName, const nlohmann::json& ComponentData);
+
+        void ModifyComponent(RC::Unreal::UObject* Component, const nlohmann::json& ComponentData);
     };
 }

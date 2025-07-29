@@ -14,4 +14,17 @@ namespace UECustom {
 
         return (*InheritableComponentHandler).Get();
     }
+
+    USimpleConstructionScript* UBlueprintGeneratedClass::GetSimpleConstructionScript()
+    {
+        auto SimpleConstructionScript =
+            this->GetValuePtrByPropertyNameInChain<RC::Unreal::TObjectPtr<USimpleConstructionScript>>(STR("SimpleConstructionScript"));
+
+        if (!SimpleConstructionScript)
+        {
+            return nullptr;
+        }
+
+        return (*SimpleConstructionScript).Get();
+    }
 }
