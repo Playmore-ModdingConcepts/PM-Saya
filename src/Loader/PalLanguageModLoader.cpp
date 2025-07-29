@@ -1,10 +1,12 @@
+#include "Unreal/UClass.hpp"
 #include "Unreal/UObjectGlobals.hpp"
 #include "Unreal/UScriptStruct.hpp"
 #include "SDK/Structs/FPalLocalizedTextData.h"
 #include "SDK/Classes/UDataTable.h"
 #include "SDK/Classes/KismetInternationalizationLibrary.h"
+#include "SDK/Classes/Custom/UObjectGlobals.h"
+#include "SDK/Classes/Custom/UDataTableStore.h"
 #include "Loader/PalLanguageModLoader.h"
-#include "Utility/StringHelpers.h"
 #include "Utility/Config.h"
 #include "Utility/Logging.h"
 #include "Helpers/String.hpp"
@@ -23,9 +25,26 @@ namespace Palworld {
 		{
 			for (auto& [RowId, RowValue] : TableData.items())
 			{
-				auto Table = GetTable(TableName);
+				auto Table = UECustom::UDataTableStore::GetTableByName(TableName);
 				if (Table)
 				{
+                    auto RowStruct = Table->GetRowStruct();
+                    if (!RowStruct.Get())
+                    {
+                        throw std::runtime_error("RowStruct was invalid");
+                    }
+
+                    static auto NAME_PalLocalizedTextData = FName(TEXT("PalLocalizedTextData"), FNAME_Add);
+                    if (RowStruct.Get()->GetNamePrivate() != NAME_PalLocalizedTextData)
+                    {
+                        throw std::runtime_error("Row provided isn't equivalent to PalLocalizedTextData");
+                    }
+
+                    if (!RowValue.is_string())
+                    {
+                        throw std::runtime_error("String value must be provided for a translation");
+                    }
+
 					auto RowName = FName(RC::to_generic_string(RowId), FNAME_Add);
 					auto Row = std::bit_cast<FPalLocalizedTextData*>(Table->FindRowUnchecked(RowName));
 					if (Row)
@@ -51,62 +70,17 @@ namespace Palworld {
         {
             auto language = Palworld::UKismetInternationalizationLibrary::GetCurrentLanguage();
             m_currentLanguage = RC::to_string(language.GetCharArray());
-            PS::Log<RC::LogLevel::Normal>(STR("Language override not set, using current language.\n"));
+            PS::Log<RC::LogLevel::Normal>(STR("Language override not set, using system language ({}).\n"), language.GetCharArray());
         }
         else
         {
             m_currentLanguage = languageOverride;
             PS::Log<RC::LogLevel::Normal>(STR("Language override set to {}.\n"), RC::to_generic_string(languageOverride));
         }
-
-		std::vector<UObject*> Objects;
-		UObjectGlobals::FindAllOf(TEXT("DataTable"), Objects);
-
-		for (auto& Object : Objects)
-		{
-			auto DT = static_cast<UECustom::UDataTable*>(Object);
-			auto RowStruct = DT->GetRowStruct();
-			if (RowStruct.UnderlyingObjectPointer)
-			{
-				static auto NAME_PalLocalizedTextData = FName(TEXT("PalLocalizedTextData"), FNAME_Add);
-				if (RowStruct.UnderlyingObjectPointer->GetNamePrivate() == NAME_PalLocalizedTextData)
-				{
-					auto Name = Object->GetNamePrivate().ToString();
-					AddTable(RC::to_string(Name), DT);
-				}
-			}
-		}
 	}
 
 	const std::string& PalLanguageModLoader::GetCurrentLanguage()
 	{
 		return m_currentLanguage;
-	}
-
-	void PalLanguageModLoader::Add(const std::string& TableKey, const std::string& RowId, const std::string& RowValue)
-	{
-		auto Table = GetTable(TableKey);
-		if (Table)
-		{
-			auto NewRow = FPalLocalizedTextData{};
-			auto RowName = FName(RC::to_generic_string(RowId), FNAME_Add);
-			NewRow.TextData = FText(RC::to_generic_string(RowValue));
-			Table->AddRow(RowName, NewRow);
-		}
-	}
-
-	void PalLanguageModLoader::AddTable(const std::string& Id, UECustom::UDataTable* Table)
-	{
-		m_tables.emplace(Id, Table);
-	}
-
-	UECustom::UDataTable* PalLanguageModLoader::GetTable(const std::string& Id)
-	{
-		auto It = m_tables.find(Id);
-		if (It != m_tables.end())
-		{
-			return It->second;
-		}
-		return nullptr;
 	}
 }

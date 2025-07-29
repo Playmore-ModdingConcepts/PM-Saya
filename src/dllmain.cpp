@@ -9,6 +9,10 @@
 #include "Utility/Logging.h"
 #include "SDK/PalSignatures.h"
 #include "SDK/Classes/Async.h"
+#include "SDK/Helper/BPGeneratedClassHelper.h"
+#include "SDK/Classes/Custom/UBlueprintGeneratedClass.h"
+#include "SDK/Classes/Custom/UInheritableComponentHandler.h"
+#include "SDK/UnrealOffsets.h"
 
 using namespace RC;
 using namespace RC::Unreal;
@@ -19,12 +23,14 @@ public:
     PalSchema() : CppUserModBase()
     {
         ModName = STR("PalSchema");
-        ModVersion = STR("0.3.3");
-        ModDescription = STR("Allows modifying of Palworld's DataTables and DataAssets dynamically.");
+        ModVersion = STR("0.4.0");
+        ModDescription = STR("Allows modifying of Palworld's assets dynamically.");
         ModAuthors = STR("Okaetsu");
 
         PS::PSConfig::Load();
         Palworld::SignatureManager::Initialize();
+        Palworld::UnrealOffsets::Initialize();
+
         MainLoader.PreInitialize();
 
         PS::Log<RC::LogLevel::Verbose>(STR("{} v{} by {} loaded.\n"), ModName, ModVersion, ModAuthors);

@@ -1,17 +1,19 @@
 #include <fstream>
 #include <filesystem>
 #include "Unreal/UClass.hpp"
-#include "Unreal/UFunction.hpp"
 #include "Unreal/Hooks.hpp"
-#include "Helpers/String.hpp"
-#include "Loader/PalMainLoader.h"
 #include "Utility/Config.h"
 #include "Utility/Logging.h"
-#include <SDK/Classes/Async.h>
+#include "SDK/Classes/Async.h"
+#include "SDK/Classes/Custom/UDataTableStore.h"
+#include "SDK/Classes/Custom/UObjectGlobals.h"
 #include "SDK/Classes/UDataTable.h"
 #include "SDK/Classes/PalUtility.h"
 #include "SDK/PalSignatures.h"
+#include "SDK/StaticClassStorage.h"
+#include "SDK/UnrealOffsets.h"
 #include "UE4SSProgram.hpp"
+#include "Loader/PalMainLoader.h"
 
 using namespace RC;
 using namespace RC::Unreal;
@@ -26,60 +28,23 @@ namespace Palworld {
         auto expected1 = HandleDataTableChanged_Hook.disable();
         HandleDataTableChanged_Hook = {};
 
-        auto expected2 = PostLoadDefaultObject_Hook.disable();
-        PostLoadDefaultObject_Hook = {};
-
-        auto expected3 = InitGameState_Hook.disable();
+        auto expected2 = InitGameState_Hook.disable();
         InitGameState_Hook = {};
 
-        HandleDataTableChangedCallbacks.clear();
-        PostLoadDefaultObjectCallbacks.clear();
-        InitGameStateCallbacks.clear();
+        auto expected3 = PostLoad_Hook.disable();
+        PostLoad_Hook = {};
 
-        if (m_loadBrowserFunction)
-        {
-            m_loadBrowserFunction->UnregisterHook(m_loadBrowserFunctionCallbackId);
-            m_loadBrowserFunction = nullptr;
-        }
+        auto expected4 = EngineLoopInit_Hook.disable();
+        EngineLoopInit_Hook = {};
+
+        HandleDataTableChangedCallbacks.clear();
+        InitGameStateCallbacks.clear();
+        PostLoadCallbacks.clear();
+        EngineLoopPreInitCallbacks.clear();
     }
 
     void PalMainLoader::PreInitialize()
     {
-        std::vector<fs::path::string_type> listOfModsWithErrors;
-
-        IterateModsFolder([&](const fs::directory_entry& modFolder) {
-            auto modName = modFolder.path().stem().native();
-            try
-            {
-                PS::Log<RC::LogLevel::Normal>(STR("Loading mod: {}\n"), modName);
-
-                auto rawFolder = modFolder.path() / "raw";
-                LoadRawTables(rawFolder);
-
-                auto blueprintFolder = modFolder.path() / "blueprints";
-                LoadBlueprintModsSafe(blueprintFolder);
-            }
-            catch (const std::exception&)
-            {
-                listOfModsWithErrors.push_back(modName);
-            }
-        });
-
-        auto errorCount = listOfModsWithErrors.size();
-        m_errorCount += errorCount;
-
-        auto PostLoadDefaultObjectAddress = Palworld::SignatureManager::GetSignature("UBlueprintGeneratedClass::PostLoadDefaultObject");
-        if (PostLoadDefaultObjectAddress)
-        {
-            PostLoadDefaultObject_Hook = safetyhook::create_inline(PostLoadDefaultObjectAddress,
-                reinterpret_cast<void*>(PostLoadDefaultObject));
-
-            PostLoadDefaultObjectCallbacks.push_back([&](UClass* BPGeneratedClass, UObject* DefaultObject) {
-                OnPostLoadDefaultObject(BPGeneratedClass, DefaultObject);
-                BlueprintModLoader.OnPostLoadDefaultObject(BPGeneratedClass, DefaultObject);
-            });
-        }
-
         auto InitGameState_Address = Palworld::SignatureManager::GetSignature("AGameModeBase::InitGameState");
         if (InitGameState_Address)
         {
@@ -87,8 +52,7 @@ namespace Palworld {
                 reinterpret_cast<void*>(InitGameState));
 
             InitGameStateCallbacks.push_back([&](AGameModeBase* Instance) {
-                RawTableLoader.SetIsUnrealReady(true);
-                RawTableLoader.ApplyLate();
+                UECustom::UDataTableStore::Initialize();
 
                 LanguageModLoader.Initialize();
                 MonsterModLoader.Initialize();
@@ -110,31 +74,31 @@ namespace Palworld {
 
             HandleDataTableChangedCallbacks.push_back([&](UECustom::UDataTable* Table) {
                 RawTableLoader.Apply(Table);
+                UECustom::UDataTableStore::Store(Table);
             });
         }
+
+        auto EngineLoopInit_Address = Palworld::SignatureManager::GetSignature("FEngineLoop::Init");
+        if (EngineLoopInit_Address)
+        {
+            EngineLoopInit_Hook = safetyhook::create_inline(reinterpret_cast<void*>(EngineLoopInit_Address),
+                EngineLoopInit);
+
+            EngineLoopPreInitCallbacks.push_back([&](void* EngineLoop) {
+                OnBeforeEngineLoopInit();
+            });
+
+            EngineLoopPostInitCallbacks.push_back([&](void* EngineLoop) {
+                OnAfterEngineLoopInit();
+            });
+        }
+
+        SetupAlternativePakPathReader();
     }
 
     void PalMainLoader::Initialize()
 	{
-        m_loadBrowserFunction = UObjectGlobals::StaticFindObject<UFunction*>(nullptr, nullptr, STR("/Script/WebBrowserWidget.WebBrowser:LoadURL"));
-        if (m_loadBrowserFunction)
-        {
-            m_loadBrowserFunctionCallbackId = m_loadBrowserFunction->RegisterPostHook([this](UnrealScriptFunctionCallableContext& Context, void* CustomData) {
-                if (m_loadBrowserFunction)
-                {
-                    m_loadBrowserFunction->UnregisterHook(m_loadBrowserFunctionCallbackId);
-                    m_loadBrowserFunction = nullptr;
-                }
-
-                DisplayErrorPopup();
-            });
-        }
-
-        if (PS::PSConfig::IsAutoReloadEnabled())
-        {
-            PS::Log<LogLevel::Normal>(STR("Auto-reload is enabled.\n"));
-            SetupAutoReload();
-        }
+        SetupAutoReload();
 	}
 
     void PalMainLoader::ReloadMods()
@@ -176,6 +140,10 @@ namespace Palworld {
 
     void PalMainLoader::SetupAutoReload()
     {
+        if (!PS::PSConfig::IsAutoReloadEnabled()) return;
+
+        PS::Log<LogLevel::Normal>(STR("Auto-reload is enabled.\n"));
+
         m_fileWatch = std::make_unique<filewatch::FileWatch<std::wstring>>(
             fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PalSchema" / "mods",
             std::wregex(L".*\\.(json|jsonc)"),
@@ -247,6 +215,62 @@ namespace Palworld {
                 }
             }
         );
+    }
+
+    void PalMainLoader::SetupAlternativePakPathReader()
+    {
+        auto GetPakFolders_Address = Palworld::SignatureManager::GetSignature("FPakPlatformFile::GetPakFolders");
+        if (GetPakFolders_Address)
+        {
+            GetPakFolders_Hook = safetyhook::create_inline(reinterpret_cast<void*>(GetPakFolders_Address),
+                GetPakFolders);
+        }
+    }
+
+    void PalMainLoader::OnBeforeEngineLoopInit()
+    {
+        Palworld::StaticClassStorage::Initialize();
+
+        LoadCustomEnums();
+
+        std::vector<fs::path::string_type> listOfModsWithErrors;
+
+        IterateModsFolder([&](const fs::directory_entry& modFolder) {
+            auto modName = modFolder.path().stem().native();
+            try
+            {
+                PS::Log<RC::LogLevel::Normal>(STR("Loading mod: {}\n"), modName);
+
+                auto rawFolder = modFolder.path() / "raw";
+                LoadRawTables(rawFolder);
+
+                auto blueprintFolder = modFolder.path() / "blueprints";
+                LoadBlueprintModsSafe(blueprintFolder);
+            }
+            catch (const std::exception&)
+            {
+                listOfModsWithErrors.push_back(modName);
+            }
+        });
+
+        auto errorCount = listOfModsWithErrors.size();
+        m_errorCount += errorCount;
+
+        // Should in theory be more consistent than finding a signature for BlueprintGeneratedClass::PostLoad
+        auto BlueprintGeneratedClass = UECustom::UObjectGlobals::StaticFindObject<UClass*>(nullptr, nullptr, STR("/Script/Engine.BlueprintGeneratedClass"), false);
+        uintptr_t* VTablePtr = *(uintptr_t**)BlueprintGeneratedClass->GetClassDefaultObject();
+        void* PostLoadPtr = (void*)VTablePtr[20];
+
+        PostLoadCallbacks.push_back([&](UClass* BPGeneratedClass) {
+            BlueprintModLoader.OnPostLoadDefaultObject(BPGeneratedClass, BPGeneratedClass->GetClassDefaultObject());
+        });
+
+        PostLoad_Hook = safetyhook::create_inline(PostLoadPtr,
+            reinterpret_cast<void*>(PostLoad));
+    }
+
+    void PalMainLoader::OnAfterEngineLoopInit()
+    {
     }
 
     void PalMainLoader::Load()
@@ -369,6 +393,27 @@ namespace Palworld {
         });
     }
 
+    void PalMainLoader::LoadCustomEnums()
+    {
+        EnumLoader.Initialize();
+
+        IterateModsFolder([&](const fs::directory_entry& modFolder) {
+            auto& modsPath = modFolder.path();
+            auto modName = modsPath.stem().native();
+            auto enumsFolder = modFolder.path() / "enums";
+            ParseJsonFilesInPath(enumsFolder, [&](nlohmann::json data) {
+                try
+                {
+                    EnumLoader.Load(data);
+                }
+                catch (const std::exception& e)
+                {
+                    PS::Log<LogLevel::Error>(STR("Failed to add custom enums from mod {} - {}\n"), modName, RC::to_generic_string(e.what()));
+                }
+            });
+        });
+    }
+
     void PalMainLoader::IterateModsFolder(const std::function<void(const std::filesystem::directory_entry&)>& callback)
     {
         auto cwd = fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PalSchema" / "mods";
@@ -425,58 +470,24 @@ namespace Palworld {
         }
     }
 
-    void PalMainLoader::OnPostLoadDefaultObject(UClass* This, UObject* DefaultObject)
-    {
-        static auto NAME_WBP_Title = FName(STR("WBP_Title_C"), FNAME_Add);
-        if (This->GetNamePrivate() == NAME_WBP_Title)
-        {
-            static bool HasHookedOnce = false;
-            if (HasHookedOnce) return;
-
-            HasHookedOnce = true;
-
-            m_titleCallbackIds = UObjectGlobals::RegisterHook(STR("/Game/Pal/Blueprint/UI/Title/WBP_TItle.WBP_TItle_C:OnSetup"),
-            [](UnrealScriptFunctionCallableContext& Context, void* CustomData) {},
-            [this](UnrealScriptFunctionCallableContext& Context, void* CustomData) {
-                DisplayErrorPopup();
-                UObjectGlobals::UnregisterHook(STR("/Game/Pal/Blueprint/UI/Title/WBP_TItle.WBP_TItle_C:OnSetup"), m_titleCallbackIds);
-            },
-            nullptr);
-        }
-    }
-
-    void PalMainLoader::DisplayErrorPopup()
-    {
-        if (m_errorCount > 0)
-        {
-            auto WorldContextObject = UObjectGlobals::FindFirstOf(STR("Actor"));
-            if (WorldContextObject)
-            {
-                auto ErrorMessage = std::format(STR("<Yellow_20B>Pal Schema</>\r\n{} mod{} had errors.\r\n\r\nPlease check <NumBlue_12>UE4SS.log</> for detailed information."),
-                    m_errorCount, m_errorCount > 1 ? STR("s") : STR(""));
-                UPalUtility::Alert(WorldContextObject, FText(ErrorMessage));
-            }
-        }
-    }
-
     void PalMainLoader::HandleDataTableChanged(UECustom::UDataTable* This, FName param_1)
     {
-        HandleDataTableChanged_Hook.call(This, param_1);
-
         for (auto& Callback : HandleDataTableChangedCallbacks)
         {
             Callback(This);
         }
+
+        HandleDataTableChanged_Hook.call(This, param_1);
     }
 
-    void PalMainLoader::PostLoadDefaultObject(UClass* This, UObject* DefaultObject)
+    void PalMainLoader::PostLoad(UClass* This)
     {
-        for (auto& Callback : PostLoadDefaultObjectCallbacks)
-        {
-            Callback(This, DefaultObject);
-        }
+        PostLoad_Hook.call(This);
 
-        PostLoadDefaultObject_Hook.call(This, DefaultObject);
+        for (auto& Callback : PostLoadCallbacks)
+        {
+            Callback(This);
+        }
     }
 
     void PalMainLoader::InitGameState(AGameModeBase* This)
@@ -490,5 +501,45 @@ namespace Palworld {
 
         auto expected = InitGameState_Hook.disable();
         InitGameState_Hook = {};
+    }
+
+    int PalMainLoader::EngineLoopInit(void* This)
+    {
+        for (auto& Callback : EngineLoopPreInitCallbacks)
+        {
+            Callback(This);
+        }
+
+        auto Result = EngineLoopInit_Hook.call<int>(This);
+
+        for (auto& Callback : EngineLoopPostInitCallbacks)
+        {
+            Callback(This);
+        }
+
+        return Result;
+    }
+
+    void PalMainLoader::GetPakFolders(const TCHAR* CmdLine, TArray<FString>* OutPakFolders)
+    {
+        GetPakFolders_Hook.call(CmdLine, OutPakFolders);
+
+        try
+        {
+            // Calling this here, because we want GMalloc to be available ASAP inside this hook so we can make our changes to the TArray.
+            // Once UE4SS starts running things on Game Thread, this could be moved to PreInitialize.
+            UnrealOffsets::InitializeGMalloc();
+        }
+        catch (const std::exception& e)
+        {
+            PS::Log<LogLevel::Error>(STR("Failed to initialize GMalloc early: {}\n"), RC::to_generic_string(e.what()));
+        }
+
+        auto ModsFolderPath = fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PalSchema" / "mods";
+        auto AbsolutePath = ModsFolderPath.native();
+        auto AbsolutePathWithSuffix = std::format(STR("{}/"), RC::to_generic_string(AbsolutePath));
+
+        // If GMalloc isn't properly initialized, accessing the TArray will crash.
+        OutPakFolders->Add(FString(AbsolutePathWithSuffix.c_str()));
     }
 }

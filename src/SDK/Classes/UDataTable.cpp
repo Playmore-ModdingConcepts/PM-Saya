@@ -6,6 +6,7 @@
 #include "Unreal/BPMacros.hpp"
 #include "SDK/Structs/FTableRowBase.h"
 #include "SDK/Classes/UDataTable.h"
+#include "SDK/Classes/Custom/UObjectGlobals.h"
 
 using namespace RC;
 using namespace RC::Unreal;
@@ -13,7 +14,7 @@ using namespace RC::Unreal;
 namespace UECustom {
 	UScriptStruct& UDataTable::GetEmptyUsingStruct() const
 	{
-		UScriptStruct* EmptyUsingStruct = this->GetRowStruct().UnderlyingObjectPointer;
+		UScriptStruct* EmptyUsingStruct = this->GetRowStruct().Get();
 
 		// ::StaticStruct() appears to be created as part of codegen from Unreal USTRUCT/GENERATED_BODY... 
 		// Not sure if we have a good way to replicate this functionality. 
@@ -55,6 +56,12 @@ namespace UECustom {
 			FMemory::Free(RowData);
 		}
 	}
+
+    UClass* UDataTable::StaticClass()
+    {
+        static auto Class = UECustom::UObjectGlobals::StaticFindObject<UClass*>(nullptr, nullptr, STR("/Script/Engine.DataTable"));
+        return Class;
+    }
 
 	TMap<FName, uint8*>& UDataTable::GetRowMap()
 	{
@@ -123,7 +130,7 @@ namespace UECustom {
 
 	auto UDataTable::FindRowUnchecked(FName RowName) const -> uint8*
 	{
-		if (GetRowStruct().UnderlyingObjectPointer == nullptr)
+		if (GetRowStruct().Get() == nullptr)
 		{
 			return nullptr;
 		}

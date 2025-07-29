@@ -7,6 +7,10 @@
 #include <unordered_map>
 #include <safetyhook.hpp>
 
+namespace UECustom {
+    class UBlueprintGeneratedClass;
+}
+
 namespace Palworld {
     class PalBlueprintModLoader : public PalModLoaderBase {
     public:
@@ -31,5 +35,7 @@ namespace Palworld {
         void ApplyMod(const PalBlueprintMod& BPMod, RC::Unreal::UObject* Object);
 
         void ApplyMod(const nlohmann::json& Data, RC::Unreal::UObject* Object);
+
+        void ModifyBlueprintComponent(UECustom::UBlueprintGeneratedClass* BPClass, const RC::StringType& ComponentName, const nlohmann::json& ComponentData);
     };
 }

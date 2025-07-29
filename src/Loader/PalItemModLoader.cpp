@@ -8,8 +8,8 @@
 #include "SDK/Classes/PalDynamicWeaponItemDataBase.h"
 #include "SDK/Classes/PalDynamicArmorItemDataBase.h"
 #include "SDK/Structs/FPalCharacterIconDataRow.h"
+#include "SDK/Helper/PropertyHelper.h"
 #include "Helpers/String.hpp"
-#include "Utility/DataTableHelper.h"
 #include "Utility/Logging.h"
 #include "Loader/PalItemModLoader.h"
 
@@ -145,7 +145,7 @@ namespace Palworld {
 			}
 			if (Data.contains(PropertyName))
 			{
-				DataTableHelper::CopyJsonValueToTableRow(reinterpret_cast<uint8_t*>(Item), Property, Data.at(PropertyName));
+				PropertyHelper::CopyJsonValueToContainer(reinterpret_cast<uint8_t*>(Item), Property, Data.at(PropertyName));
 			}
 		}
 		
@@ -175,7 +175,7 @@ namespace Palworld {
 			}
 			if (Data.contains(PropertyName))
 			{
-				DataTableHelper::CopyJsonValueToTableRow(reinterpret_cast<uint8_t*>(Item), Property, Data.at(PropertyName));
+				PropertyHelper::CopyJsonValueToContainer(reinterpret_cast<uint8_t*>(Item), Property, Data.at(PropertyName));
 			}
 		}
 
@@ -189,7 +189,7 @@ namespace Palworld {
 
 	void PalItemModLoader::AddRecipe(const RC::Unreal::FName& ItemId, const nlohmann::json& Recipe)
 	{
-		auto RowStruct = m_itemRecipeTable->GetRowStruct().UnderlyingObjectPointer;
+		auto RowStruct = m_itemRecipeTable->GetRowStruct().Get();
 
 		auto ItemRecipeData = FMemory::Malloc(RowStruct->GetStructureSize());
 		RowStruct->InitializeStruct(ItemRecipeData);
@@ -215,7 +215,7 @@ namespace Palworld {
 			{
 				try
 				{
-					DataTableHelper::CopyJsonValueToTableRow(ItemRecipeData, Property, property_value);
+					PropertyHelper::CopyJsonValueToContainer(ItemRecipeData, Property, property_value);
 				}
 				catch (const std::exception& e)
 				{
@@ -238,7 +238,7 @@ namespace Palworld {
 
 	void PalItemModLoader::EditRecipe(const RC::Unreal::FName& ItemId, const nlohmann::json& Recipe)
 	{
-		auto RowStruct = m_itemRecipeTable->GetRowStruct().UnderlyingObjectPointer;
+		auto RowStruct = m_itemRecipeTable->GetRowStruct().Get();
 
 		auto RecipeRow = m_itemRecipeTable->FindRowUnchecked(ItemId);
 		if (!RecipeRow)
@@ -258,7 +258,7 @@ namespace Palworld {
 			auto Property = RowStruct->GetPropertyByName(KeyName.c_str());
 			if (Property)
 			{
-				DataTableHelper::CopyJsonValueToTableRow(RecipeRow, Property, property_value);
+				PropertyHelper::CopyJsonValueToContainer(RecipeRow, Property, property_value);
 			}
 		}
 
@@ -270,7 +270,7 @@ namespace Palworld {
 		if (Data.contains("Name"))
 		{
 			auto FixedItemId = std::format(STR("ITEM_NAME_{}"), ItemId.ToString());
-			auto TranslationRowStruct = m_nameTranslationTable->GetRowStruct().UnderlyingObjectPointer;
+			auto TranslationRowStruct = m_nameTranslationTable->GetRowStruct().Get();
 			auto TextProperty = TranslationRowStruct->GetPropertyByName(STR("TextData"));
 			if (TextProperty)
 			{
@@ -279,7 +279,7 @@ namespace Palworld {
 
 				try
 				{
-					DataTableHelper::CopyJsonValueToTableRow(TranslationRowData, TextProperty, Data.at("Name"));
+					PropertyHelper::CopyJsonValueToContainer(TranslationRowData, TextProperty, Data.at("Name"));
 				}
 				catch (const std::exception& e)
 				{
@@ -294,7 +294,7 @@ namespace Palworld {
 		if (Data.contains("Description"))
 		{
 			auto FixedItemId = std::format(STR("ITEM_DESC_{}"), ItemId.ToString());
-			auto TranslationRowStruct = m_descriptionTranslationTable->GetRowStruct().UnderlyingObjectPointer;
+			auto TranslationRowStruct = m_descriptionTranslationTable->GetRowStruct().Get();
 			auto TextProperty = TranslationRowStruct->GetPropertyByName(STR("TextData"));
 			if (TextProperty)
 			{
@@ -303,7 +303,7 @@ namespace Palworld {
 
 				try
 				{
-					DataTableHelper::CopyJsonValueToTableRow(TranslationRowData, TextProperty, Data.at("Description"));
+					PropertyHelper::CopyJsonValueToContainer(TranslationRowData, TextProperty, Data.at("Description"));
 				}
 				catch (const std::exception& e)
 				{
@@ -321,14 +321,14 @@ namespace Palworld {
 		if (Data.contains("Name"))
 		{
 			auto FixedItemId = std::format(STR("ITEM_NAME_{}"), ItemId.ToString());
-			auto TranslationRowStruct = m_nameTranslationTable->GetRowStruct().UnderlyingObjectPointer;
+			auto TranslationRowStruct = m_nameTranslationTable->GetRowStruct().Get();
 			auto TextProperty = TranslationRowStruct->GetPropertyByName(STR("TextData"));
 			if (TextProperty)
 			{
 				auto Row = m_nameTranslationTable->FindRowUnchecked(FName(FixedItemId, FNAME_Add));
 				if (Row)
 				{
-					DataTableHelper::CopyJsonValueToTableRow(Row, TextProperty, Data.at("Name"));
+					PropertyHelper::CopyJsonValueToContainer(Row, TextProperty, Data.at("Name"));
 				}
 			}
 		}
@@ -336,14 +336,14 @@ namespace Palworld {
 		if (Data.contains("Description"))
 		{
 			auto FixedItemId = std::format(STR("ITEM_DESC_{}"), ItemId.ToString());
-			auto TranslationRowStruct = m_nameTranslationTable->GetRowStruct().UnderlyingObjectPointer;
+			auto TranslationRowStruct = m_nameTranslationTable->GetRowStruct().Get();
 			auto TextProperty = TranslationRowStruct->GetPropertyByName(STR("TextData"));
 			if (TextProperty)
 			{
 				auto Row = m_descriptionTranslationTable->FindRowUnchecked(FName(FixedItemId, FNAME_Add));
 				if (Row)
 				{
-					DataTableHelper::CopyJsonValueToTableRow(Row, TextProperty, Data.at("Description"));
+					PropertyHelper::CopyJsonValueToContainer(Row, TextProperty, Data.at("Description"));
 				}
 			}
 		}

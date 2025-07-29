@@ -29,6 +29,8 @@ namespace UECustom {
         /** Deletes the row memory */
         void RemoveRowInternal(RC::Unreal::FName RowName);
     public:
+        static RC::Unreal::UClass* StaticClass();
+
         RC::Unreal::TMap<RC::Unreal::FName, RC::Unreal::uint8*>& GetRowMap();
 
         const RC::Unreal::TMap<RC::Unreal::FName, RC::Unreal::uint8*>& GetRowMap() const;

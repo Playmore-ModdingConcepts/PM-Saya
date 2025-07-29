@@ -4,11 +4,14 @@
 #include "Unreal/AActor.hpp"
 #include "Unreal/Property/FObjectProperty.hpp"
 #include "Helpers/String.hpp"
-#include "Utility/DataTableHelper.h"
+#include "SDK/Helper/PropertyHelper.h"
 #include "Utility/Config.h"
 #include "Utility/Logging.h"
 #include "Loader/PalBlueprintModLoader.h"
 #include "SDK/Classes/KismetSystemLibrary.h"
+#include "SDK/Helper/BPGeneratedClassHelper.h"
+#include "SDK/Classes/Custom/UBlueprintGeneratedClass.h"
+#include "SDK/Classes/Custom/UInheritableComponentHandler.h"
 
 using namespace RC;
 using namespace RC::Unreal;
@@ -81,23 +84,22 @@ namespace Palworld {
 
     void PalBlueprintModLoader::OnPostLoadDefaultObject(RC::Unreal::UClass* This, RC::Unreal::UObject* DefaultObject)
     {
-        if (DefaultObject)
+        if (!DefaultObject) return;
+
+        auto BPName = This->GetNamePrivate().ToString();
+        if (Palworld::PalBlueprintModLoader::BPModRegistry.contains(BPName))
         {
-            auto BPName = This->GetNamePrivate().ToString();
-            if (Palworld::PalBlueprintModLoader::BPModRegistry.contains(BPName))
+            auto& Mods = PalBlueprintModLoader::GetModsForBlueprint(BPName);
+            for (auto& Mod : Mods)
             {
-                auto& Mods = PalBlueprintModLoader::GetModsForBlueprint(BPName);
-                for (auto& Mod : Mods)
+                try
                 {
-                    try
-                    {
-                        PalBlueprintModLoader::ApplyMod(Mod, DefaultObject);
-                        PS::Log<RC::LogLevel::Normal>(STR("Applied modifications to {}\n"), BPName);
-                    }
-                    catch (const std::exception& e)
-                    {
-                        PS::Log<RC::LogLevel::Error>(STR("Failed modifying blueprint '{}', {}\n"), BPName, RC::to_generic_string(e.what()));
-                    }
+                    PalBlueprintModLoader::ApplyMod(Mod, DefaultObject);
+                    PS::Log<RC::LogLevel::Normal>(STR("Applied modifications to {}\n"), BPName);
+                }
+                catch (const std::exception& e)
+                {
+                    PS::Log<RC::LogLevel::Error>(STR("Failed modifying blueprint '{}', {}\n"), BPName, RC::to_generic_string(e.what()));
                 }
             }
         }
@@ -122,62 +124,93 @@ namespace Palworld {
 
     void PalBlueprintModLoader::ApplyMod(const nlohmann::json& Data, RC::Unreal::UObject* Object)
     {
-        UClass* Class = Object->GetClassPrivate();
-        for (auto& [Key, Value] : Data.items())
+        auto Class = static_cast<UECustom::UBlueprintGeneratedClass*>(Object->GetClassPrivate());
+
+        for (auto& [PropertyName, PropertyValue] : Data.items())
         {
-            auto PropertyName = RC::to_generic_string(Key);
-            auto Property = Class->GetPropertyByNameInChain(PropertyName.c_str());
-            if (Property)
+            auto PropertyNameWide = RC::to_generic_string(PropertyName);
+            auto Property = Palworld::PropertyHelper::GetPropertyByName(Class, PropertyNameWide);
+            
+            if (!Property)
             {
-                if (auto ObjectProperty = CastField<FObjectProperty>(Property))
+                PS::Log<RC::LogLevel::Warning>(STR("Property '{}' does not exist in {}\n"), PropertyNameWide, Class->GetNamePrivate().ToString());
+                continue;
+            }
+
+            if (auto ObjectProperty = CastField<FObjectProperty>(Property))
+            {
+                auto ObjectValue = *Property->ContainerPtrToValuePtr<UObject*>(Object);
+                if (!ObjectValue)
                 {
-                    auto ObjectValue = *Property->ContainerPtrToValuePtr<UObject*>(static_cast<void*>(Object));
-                    if (!ObjectValue)
-                    {
-                        auto GEN_VAR_PATH = std::format(STR("{}:{}_GEN_VARIABLE"), Class->GetPathName(), PropertyName);
-                        auto GEN_VAR_OBJECT = UObjectGlobals::StaticFindObject<UObject*>(nullptr, nullptr, GEN_VAR_PATH);
-                        if (GEN_VAR_OBJECT)
-                        {
-                            if (Value.is_object())
-                            {
-                                for (auto& [InnerKey, InnerValue] : Value.items())
-                                {
-                                    auto GEN_VAR_OBJECT_PROPERTY_NAME = RC::to_generic_string(InnerKey);
-                                    auto GEN_VAR_OBJECT_PROPERTY = GEN_VAR_OBJECT->GetPropertyByNameInChain(GEN_VAR_OBJECT_PROPERTY_NAME.c_str());
-                                    if (GEN_VAR_OBJECT_PROPERTY)
-                                    {
-                                        Palworld::DataTableHelper::CopyJsonValueToTableRow(static_cast<void*>(GEN_VAR_OBJECT), GEN_VAR_OBJECT_PROPERTY, InnerValue);
-                                    }
-                                    else
-                                    {
-                                        PS::Log<LogLevel::Warning>(STR("Failed to modify {} because property {} doesn't exist\n"), Class->GetNamePrivate().ToString(), GEN_VAR_OBJECT_PROPERTY_NAME);
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                PS::Log<LogLevel::Warning>(STR("{} failed to apply correctly, JSON value wasn't an object\n"), Class->GetNamePrivate().ToString());
-                            }
-                        }
-                        else
-                        {
-                            Palworld::DataTableHelper::CopyJsonValueToTableRow(static_cast<void*>(Object), Property, Value);
-                        }
-                    }
-                    else
-                    {
-                        Palworld::DataTableHelper::CopyJsonValueToTableRow(static_cast<void*>(Object), Property, Value);
-                    }
+                    // null Object means that this property could be a component template, so we should check if it has an associated GEN_VARIABLE.
+                    ModifyBlueprintComponent(Class, PropertyNameWide, PropertyValue);
                 }
                 else
                 {
-                    Palworld::DataTableHelper::CopyJsonValueToTableRow(static_cast<void*>(Object), Property, Value);
+                    // Object has a pointer assigned to it so we let PropertyHelper handle it.
+                    Palworld::PropertyHelper::CopyJsonValueToContainer(Object, Property, PropertyValue);
                 }
             }
             else
             {
-                PS::Log<RC::LogLevel::Warning>(STR("Property '{}' does not exist in {}\n"), PropertyName, Class->GetNamePrivate().ToString());
+                // Any other property values get handled here like Numeric, Bool, String, etc.
+                Palworld::PropertyHelper::CopyJsonValueToContainer(Object, Property, PropertyValue);
             }
+        }
+    }
+
+    void PalBlueprintModLoader::ModifyBlueprintComponent(UECustom::UBlueprintGeneratedClass* BPClass, const RC::StringType& ComponentName, 
+                                                         const nlohmann::json& ComponentData)
+    {
+        auto ComponentFullName = std::format(STR("{}_GEN_VARIABLE"), ComponentName);
+        UObject* ComponentTemplate = nullptr;
+
+        auto InheritableComponentHandler = BPClass->GetInheritableComponentHandler();
+        if (InheritableComponentHandler)
+        {
+            auto Records = InheritableComponentHandler->GetRecords();
+            for (auto& Record : Records)
+            {
+                if (Record.ComponentTemplate.Get() == nullptr) continue;
+
+                if (Record.ComponentTemplate.Get()->GetName() == ComponentFullName)
+                {
+                    ComponentTemplate = Record.ComponentTemplate.Get();
+                }
+            }
+        }
+
+        if (ComponentTemplate)
+        {
+            if (ComponentData.is_object())
+            {
+                for (auto& [InnerKey, InnerValue] : ComponentData.items())
+                {
+                    auto ComponentPropertyName = RC::to_generic_string(InnerKey);
+                    auto ComponentProperty = ComponentTemplate->GetPropertyByNameInChain(ComponentPropertyName.c_str());
+                    if (ComponentProperty)
+                    {
+                        Palworld::PropertyHelper::CopyJsonValueToContainer(ComponentTemplate, ComponentProperty, InnerValue);
+                    }
+                    else
+                    {
+                        auto BPClassName = BPClass->GetNamePrivate().ToString();
+                        PS::Log<LogLevel::Warning>(STR("Property {} doesn't exist in {}\n"), ComponentPropertyName, BPClassName);
+                    }
+                }
+            }
+            else
+            {
+                auto BPClassName = BPClass->GetNamePrivate().ToString();
+                PS::Log<LogLevel::Warning>(STR("{} failed to apply, provided JSON value wasn't an object\n"), BPClassName);
+            }
+        }
+        else
+        {
+            // Leaving this here for now until I can confirm this isn't necessary for anything.
+            // I can't think of cases where this would be useful to keep.
+            auto BPClassName = BPClass->GetNamePrivate().ToString();
+            PS::Log<LogLevel::Verbose>(STR("ModifyBlueprintComponent -> {} in {}.\n"), ComponentName, BPClassName);
         }
     }
 }

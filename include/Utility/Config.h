@@ -2,6 +2,7 @@
 
 #include <string>
 #include <unordered_set>
+#include "nlohmann/json.hpp"
 
 namespace PS {
     class PSConfig {

@@ -1,7 +1,5 @@
 #pragma once
 
-#include "Unreal/FString.hpp"
-#include "File/Macros.hpp"
 #include "nlohmann/json.hpp"
 #include "Loader/PalModLoaderBase.h"
 
@@ -22,14 +20,6 @@ namespace Palworld {
 
 		const std::string& GetCurrentLanguage();
 	private:
-		std::unordered_map<std::string, UECustom::UDataTable*> m_tables;
-
 		std::string m_currentLanguage{};
-
-		void Add(const std::string& TableKey, const std::string& RowId, const std::string& RowValue);
-
-		void AddTable(const std::string& Id, UECustom::UDataTable* Table);
-
-		UECustom::UDataTable* GetTable(const std::string& Id);
 	};
 }

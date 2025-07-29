@@ -8,8 +8,7 @@
 #include "SDK/Classes/KismetInternationalizationLibrary.h"
 #include "SDK/Structs/FPalCharacterIconDataRow.h"
 #include "SDK/Structs/FPalBPClassDataRow.h"
-#include "SDK/EnumCache.h"
-#include "Utility/DataTableHelper.h"
+#include "SDK/Helper/PropertyHelper.h"
 #include "Utility/Logging.h"
 #include "Helpers/String.hpp"
 #include "Loader/PalSkinModLoader.h"
@@ -120,13 +119,13 @@ namespace Palworld {
 			auto PropertyName = RC::to_string(Property->GetName());
 			if (Data.contains(PropertyName))
 			{
-				DataTableHelper::CopyJsonValueToTableRow(reinterpret_cast<uint8_t*>(Item), Property, Data.at(PropertyName));
+				PropertyHelper::CopyJsonValueToContainer(reinterpret_cast<uint8_t*>(Item), Property, Data.at(PropertyName));
 			}
 		}
 
 		if (Data.contains("IconTexture"))
 		{
-			auto IconRowStruct = m_skinIconTable->GetRowStruct().UnderlyingObjectPointer;
+			auto IconRowStruct = m_skinIconTable->GetRowStruct().Get();
 			auto IconProperty = IconRowStruct->GetPropertyByName(STR("Icon"));
 			if (!IconProperty)
 			{
@@ -138,7 +137,7 @@ namespace Palworld {
 
 			try
 			{
-				DataTableHelper::CopyJsonValueToTableRow(IconRowData, IconProperty, Data.at("IconTexture"));
+				PropertyHelper::CopyJsonValueToContainer(IconRowData, IconProperty, Data.at("IconTexture"));
 			}
 			catch (const std::exception& e)
 			{
@@ -166,7 +165,7 @@ namespace Palworld {
 			auto PropertyName = RC::to_string(Property->GetName());
 			if (Data.contains(PropertyName))
 			{
-				DataTableHelper::CopyJsonValueToTableRow(reinterpret_cast<uint8_t*>(Item), Property, Data.at(PropertyName));
+				PropertyHelper::CopyJsonValueToContainer(reinterpret_cast<uint8_t*>(Item), Property, Data.at(PropertyName));
 			}
 		}
 
@@ -175,14 +174,14 @@ namespace Palworld {
 		{
 			if (Data.contains("Icon"))
 			{
-				auto IconRowStruct = m_skinIconTable->GetRowStruct().UnderlyingObjectPointer;
+				auto IconRowStruct = m_skinIconTable->GetRowStruct().Get();
 				auto IconProperty = IconRowStruct->GetPropertyByName(STR("Icon"));
 				if (IconProperty)
 				{
 					auto Row = m_skinIconTable->FindRowUnchecked(*SkinNameProperty);
 					if (Row)
 					{
-						DataTableHelper::CopyJsonValueToTableRow(Row, IconProperty, Data.at("Icon"));
+						PropertyHelper::CopyJsonValueToContainer(Row, IconProperty, Data.at("Icon"));
 					}
 				}
 			}
@@ -197,7 +196,7 @@ namespace Palworld {
 	void PalSkinModLoader::AddTranslation(const RC::Unreal::FName& SkinId, const nlohmann::json& Data)
 	{
 		auto FixedSkinId = std::format(STR("SKIN_NAME_{}"), SkinId.ToString());
-		auto TranslationRowStruct = m_skinTranslationTable->GetRowStruct().UnderlyingObjectPointer;
+		auto TranslationRowStruct = m_skinTranslationTable->GetRowStruct().Get();
 		auto TextProperty = TranslationRowStruct->GetPropertyByName(STR("TextData"));
 		if (TextProperty)
 		{
@@ -206,7 +205,7 @@ namespace Palworld {
 
 			try
 			{
-				DataTableHelper::CopyJsonValueToTableRow(TranslationRowData, TextProperty, Data);
+				PropertyHelper::CopyJsonValueToContainer(TranslationRowData, TextProperty, Data);
 			}
 			catch (const std::exception& e)
 			{
@@ -221,14 +220,14 @@ namespace Palworld {
 	void PalSkinModLoader::EditTranslation(const RC::Unreal::FName& SkinId, const nlohmann::json& Data)
 	{
 		auto FixedSkinId = std::format(STR("SKIN_NAME_{}"), SkinId.ToString());
-		auto TranslationRowStruct = m_skinTranslationTable->GetRowStruct().UnderlyingObjectPointer;
+		auto TranslationRowStruct = m_skinTranslationTable->GetRowStruct().Get();
 		auto TextProperty = TranslationRowStruct->GetPropertyByName(STR("TextData"));
 		if (TextProperty)
 		{
 			auto Row = m_skinTranslationTable->FindRowUnchecked(FName(FixedSkinId, FNAME_Add));
 			if (Row)
 			{
-				DataTableHelper::CopyJsonValueToTableRow(Row, TextProperty, Data);
+				PropertyHelper::CopyJsonValueToContainer(Row, TextProperty, Data);
 			}
 		}
 	}

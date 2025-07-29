@@ -11,6 +11,7 @@
 #include "Loader/PalBuildingModLoader.h"
 #include "Loader/PalRawTableLoader.h"
 #include "Loader/PalBlueprintModLoader.h"
+#include "Loader/PalEnumLoader.h"
 #include "FileWatch.hpp"
 
 namespace UECustom {
@@ -40,15 +41,22 @@ namespace Palworld {
 		PalBuildingModLoader BuildingModLoader;
 		PalRawTableLoader RawTableLoader;
 		PalBlueprintModLoader BlueprintModLoader;
+        PalEnumLoader EnumLoader;
 
         int m_errorCount = 0;
-        RC::Unreal::UFunction* m_loadBrowserFunction{};
-        RC::Unreal::CallbackId m_loadBrowserFunctionCallbackId{};
-        std::pair<int, int> m_titleCallbackIds{};
 
         std::unique_ptr<filewatch::FileWatch<std::wstring>> m_fileWatch;
 
         void SetupAutoReload();
+
+        // Makes PalSchema read paks from the 'PalSchema/mods' folder. Although the paks can be anywhere, prefer for them to be put inside 'YourModName/paks'.
+        // This is intended for custom assets like models or textures that are part of a schema mod which makes it easier for modders to package their mod.
+        // Requires a signature for FPakPlatformFile::GetPakFolders, otherwise this feature will not be available.
+        void SetupAlternativePakPathReader();
+
+        void OnBeforeEngineLoopInit();
+
+        void OnAfterEngineLoopInit();
 
 		void Load();
 
@@ -70,27 +78,34 @@ namespace Palworld {
 
         void LoadSkinMods(const std::filesystem::path& path);
 
+        void LoadCustomEnums();
+
         void IterateModsFolder(const std::function<void(const std::filesystem::directory_entry&)>& callback);
 
         void ParseJsonFileInPath(const std::filesystem::path& path, const std::function<void(const nlohmann::json&)>& callback);
 
         void ParseJsonFilesInPath(const std::filesystem::path& path, const std::function<void(const nlohmann::json&)>& callback);
-
-        void OnPostLoadDefaultObject(RC::Unreal::UClass* This, RC::Unreal::UObject* DefaultObject);
-
-        void DisplayErrorPopup();
     private:
         static void HandleDataTableChanged(UECustom::UDataTable* This, RC::Unreal::FName param_1);
 
-        static void PostLoadDefaultObject(RC::Unreal::UClass* This, RC::Unreal::UObject* DefaultObject);
+        static void PostLoad(RC::Unreal::UClass* This);
 
         static void InitGameState(RC::Unreal::AGameModeBase* This);
 
+        static int EngineLoopInit(void* This);
+
+        static void GetPakFolders(const RC::Unreal::TCHAR* CmdLine, RC::Unreal::TArray<RC::Unreal::FString>* OutPakFolders);
+
         static inline std::vector<std::function<void(UECustom::UDataTable*)>> HandleDataTableChangedCallbacks;
-        static inline std::vector<std::function<void(RC::Unreal::UClass*, RC::Unreal::UObject*)>> PostLoadDefaultObjectCallbacks;
         static inline std::vector<std::function<void(RC::Unreal::AGameModeBase*)>> InitGameStateCallbacks;
+        static inline std::vector<std::function<void(RC::Unreal::UClass*)>> PostLoadCallbacks;
+        static inline std::vector<std::function<void(void*)>> EngineLoopPreInitCallbacks;
+        static inline std::vector<std::function<void(void*)>> EngineLoopPostInitCallbacks;
+
         static inline SafetyHookInline HandleDataTableChanged_Hook;
-        static inline SafetyHookInline PostLoadDefaultObject_Hook;
         static inline SafetyHookInline InitGameState_Hook;
+        static inline SafetyHookInline PostLoad_Hook;
+        static inline SafetyHookInline GetPakFolders_Hook;
+        static inline SafetyHookInline EngineLoopInit_Hook;
 	};
 }
