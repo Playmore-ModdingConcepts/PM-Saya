@@ -9,7 +9,6 @@
 #include "SDK/Structs/FPalCharacterIconDataRow.h"
 #include "SDK/Structs/FPalBPClassDataRow.h"
 #include "SDK/Helper/PropertyHelper.h"
-#include "SDK/EnumCache.h"
 #include "Utility/Logging.h"
 #include "Helpers/String.hpp"
 #include "Loader/PalSkinModLoader.h"

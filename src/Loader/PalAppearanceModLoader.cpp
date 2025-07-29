@@ -8,7 +8,6 @@
 #include "SDK/Classes/TSoftClassPtr.h"
 #include "SDK/Structs/FLinearColor.h"
 #include "SDK/Helper/PropertyHelper.h"
-#include "SDK/EnumCache.h"
 #include "Utility/Logging.h"
 #include "Helpers/String.hpp"
 #include "Loader/PalAppearanceModLoader.h"
