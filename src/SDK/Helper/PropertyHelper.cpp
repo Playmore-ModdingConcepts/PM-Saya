@@ -266,11 +266,7 @@ namespace Palworld {
             throw std::runtime_error(std::format("Property {} was supplied an invalid class of {}", PropertyName, StringValue));
         }
 
-        // Not ideal, but right now I don't have a better solution for keeping the class loaded.
-        Asset->SetRootSet();
-
-        void* ValuePtr = Property->ContainerPtrToValuePtr<void>(Data);
-        Property->SetPropertyValue(ValuePtr, Asset);
+        Property->SetPropertyValue(Data, Asset);
     }
 
     void PropertyHelper::SetObjectPropertyValueFromJsonValue(void* Data, RC::Unreal::FObjectProperty* Property, const nlohmann::json& Value)
