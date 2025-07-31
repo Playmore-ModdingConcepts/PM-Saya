@@ -34,13 +34,9 @@ namespace Palworld {
         auto expected3 = PostLoad_Hook.disable();
         PostLoad_Hook = {};
 
-        auto expected4 = EngineLoopInit_Hook.disable();
-        EngineLoopInit_Hook = {};
-
         HandleDataTableChangedCallbacks.clear();
         InitGameStateCallbacks.clear();
         PostLoadCallbacks.clear();
-        EngineLoopPreInitCallbacks.clear();
     }
 
     void PalMainLoader::PreInitialize()
@@ -52,17 +48,7 @@ namespace Palworld {
                 reinterpret_cast<void*>(InitGameState));
 
             InitGameStateCallbacks.push_back([&](AGameModeBase* Instance) {
-                UECustom::UDataTableStore::Initialize();
-
-                LanguageModLoader.Initialize();
-                MonsterModLoader.Initialize();
-                HumanModLoader.Initialize();
-                AppearanceModLoader.Initialize();
-                BuildingModLoader.Initialize();
-                ItemModLoader.Initialize();
-                SkinModLoader.Initialize();
-
-                Load();
+                InitLoaders();
             });
         }
 
@@ -73,23 +59,9 @@ namespace Palworld {
                 HandleDataTableChanged);
 
             HandleDataTableChangedCallbacks.push_back([&](UECustom::UDataTable* Table) {
+                InitCore();
                 RawTableLoader.Apply(Table);
                 UECustom::UDataTableStore::Store(Table);
-            });
-        }
-
-        auto EngineLoopInit_Address = Palworld::SignatureManager::GetSignature("FEngineLoop::Init");
-        if (EngineLoopInit_Address)
-        {
-            EngineLoopInit_Hook = safetyhook::create_inline(reinterpret_cast<void*>(EngineLoopInit_Address),
-                EngineLoopInit);
-
-            EngineLoopPreInitCallbacks.push_back([&](void* EngineLoop) {
-                OnBeforeEngineLoopInit();
-            });
-
-            EngineLoopPostInitCallbacks.push_back([&](void* EngineLoop) {
-                OnAfterEngineLoopInit();
             });
         }
 
@@ -227,8 +199,11 @@ namespace Palworld {
         }
     }
 
-    void PalMainLoader::OnBeforeEngineLoopInit()
+    void PalMainLoader::InitCore()
     {
+        if (m_hasInit) return;
+        m_hasInit = true;
+
         Palworld::StaticClassStorage::Initialize();
 
         LoadCustomEnums();
@@ -267,10 +242,25 @@ namespace Palworld {
 
         PostLoad_Hook = safetyhook::create_inline(PostLoadPtr,
             reinterpret_cast<void*>(PostLoad));
+
+        PS::Log<LogLevel::Verbose>(STR("Initialized Core\n"));
     }
 
-    void PalMainLoader::OnAfterEngineLoopInit()
+    void PalMainLoader::InitLoaders()
     {
+        UECustom::UDataTableStore::Initialize();
+
+        LanguageModLoader.Initialize();
+        MonsterModLoader.Initialize();
+        HumanModLoader.Initialize();
+        AppearanceModLoader.Initialize();
+        BuildingModLoader.Initialize();
+        ItemModLoader.Initialize();
+        SkinModLoader.Initialize();
+
+        Load();
+
+        PS::Log<LogLevel::Verbose>(STR("Initialized Loaders\n"));
     }
 
     void PalMainLoader::Load()
@@ -507,28 +497,6 @@ namespace Palworld {
         PS::Log<LogLevel::Verbose>(STR("Returning from AGameModeBase::InitGameState...\n"));
     }
 
-    int PalMainLoader::EngineLoopInit(void* This)
-    {
-        PS::Log<LogLevel::Verbose>(STR("Running FEngineLoop::Init\n"));
-
-        for (auto& Callback : EngineLoopPreInitCallbacks)
-        {
-            Callback(This);
-        }
-
-        PS::Log<LogLevel::Verbose>(STR("Calling Original FEngineLoop::Init\n"));
-        auto Result = EngineLoopInit_Hook.call<int>(This);
-
-        for (auto& Callback : EngineLoopPostInitCallbacks)
-        {
-            Callback(This);
-        }
-
-        PS::Log<LogLevel::Verbose>(STR("Returning from FEngineLoop::Init\n"));
-
-        return Result;
-    }
-
     void PalMainLoader::GetPakFolders(const TCHAR* CmdLine, TArray<FString>* OutPakFolders)
     {
         GetPakFolders_Hook.call(CmdLine, OutPakFolders);
@@ -542,6 +510,8 @@ namespace Palworld {
         catch (const std::exception& e)
         {
             PS::Log<LogLevel::Error>(STR("Failed to initialize GMalloc early: {}\n"), RC::to_generic_string(e.what()));
+            PS::Log<LogLevel::Error>(STR("PalSchema won't be able to load paks from the PalSchema/mods folder.\n"));
+            return;
         }
 
         auto ModsFolderPath = fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PalSchema" / "mods";

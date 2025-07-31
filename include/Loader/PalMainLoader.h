@@ -54,9 +54,9 @@ namespace Palworld {
         // Requires a signature for FPakPlatformFile::GetPakFolders, otherwise this feature will not be available.
         void SetupAlternativePakPathReader();
 
-        void OnBeforeEngineLoopInit();
+        void InitCore();
 
-        void OnAfterEngineLoopInit();
+        void InitLoaders();
 
 		void Load();
 
@@ -92,20 +92,18 @@ namespace Palworld {
 
         static void InitGameState(RC::Unreal::AGameModeBase* This);
 
-        static int EngineLoopInit(void* This);
-
         static void GetPakFolders(const RC::Unreal::TCHAR* CmdLine, RC::Unreal::TArray<RC::Unreal::FString>* OutPakFolders);
+
+        bool m_hasInit = false;
 
         static inline std::vector<std::function<void(UECustom::UDataTable*)>> HandleDataTableChangedCallbacks;
         static inline std::vector<std::function<void(RC::Unreal::AGameModeBase*)>> InitGameStateCallbacks;
         static inline std::vector<std::function<void(RC::Unreal::UClass*)>> PostLoadCallbacks;
-        static inline std::vector<std::function<void(void*)>> EngineLoopPreInitCallbacks;
-        static inline std::vector<std::function<void(void*)>> EngineLoopPostInitCallbacks;
+        static inline std::vector<std::function<void()>> GetPakFoldersCallback;
 
         static inline SafetyHookInline HandleDataTableChanged_Hook;
         static inline SafetyHookInline InitGameState_Hook;
         static inline SafetyHookInline PostLoad_Hook;
         static inline SafetyHookInline GetPakFolders_Hook;
-        static inline SafetyHookInline EngineLoopInit_Hook;
 	};
 }
