@@ -8,6 +8,7 @@
 #include "Utility/Logging.h"
 #include "Helpers/String.hpp"
 #include "Loader/PalRawTableLoader.h"
+#include "SDK/Classes/UCompositeDataTable.h"
 
 using namespace RC;
 using namespace RC::Unreal;
@@ -21,21 +22,24 @@ namespace Palworld {
 
 	void PalRawTableLoader::Initialize() {}
 
-    void PalRawTableLoader::Apply(UECustom::UDataTable* Table)
+    void PalRawTableLoader::OnDataTableChanged(UECustom::UDataTable* Table)
     {
         if (!Table) return;
 
-        auto Name = Table->GetNamePrivate().ToString();
-        auto RowStruct = Table->GetRowStruct().Get();
-
-        RC::StringType Suffix = STR("_Common");
-        size_t Pos = Name.rfind(Suffix);
-
-        if (Pos != RC::StringType::npos && Pos + Suffix.size() == Name.size()) {
-            Name.erase(Pos);
+        if (Table->GetClassPrivate() == UECustom::UCompositeDataTable::StaticClass())
+        {
+            auto CompositeTable = static_cast<UECustom::UCompositeDataTable*>(Table);
+            Apply(CompositeTable);
         }
+        else
+        {
+            Apply(Table->GetName(), Table);
+        }
+    }
 
-        auto It = m_tableDataMap.find(Name);
+    void PalRawTableLoader::Apply(const RC::StringType& TableName, UECustom::UDataTable* Table)
+    {
+        auto It = m_tableDataMap.find(TableName);
         if (It != m_tableDataMap.end())
         {
             LoadResult Result{};
@@ -46,10 +50,21 @@ namespace Palworld {
             }
 
             PS::Log<LogLevel::Normal>(STR("{}: {} rows updated, {} rows added, {} rows deleted, {} error{}.\n"),
-                Name, Result.SuccessfulModifications, Result.SuccessfulAdditions,
+                TableName, Result.SuccessfulModifications, Result.SuccessfulAdditions,
                 Result.SuccessfulDeletions, Result.ErrorCount, Result.ErrorCount > 1 || Result.ErrorCount == 0 ? STR("s") : STR(""));
+
+            m_tableDataMap.erase(TableName);
         }
-        m_tableDataMap.erase(Name);
+    }
+
+    void PalRawTableLoader::Apply(UECustom::UCompositeDataTable* Table)
+    {
+        auto CompositeTable = static_cast<UECustom::UCompositeDataTable*>(Table);
+        auto ParentTables = CompositeTable->GetParentTables();
+        for (auto& ParentTable : ParentTables)
+        {
+            Apply(Table->GetName(), ParentTable.Get());
+        }
     }
 
     void PalRawTableLoader::Apply(const nlohmann::json& Data, UECustom::UDataTable* Table, LoadResult& OutResult)

@@ -60,7 +60,7 @@ namespace Palworld {
 
             HandleDataTableChangedCallbacks.push_back([&](UECustom::UDataTable* Table) {
                 InitCore();
-                RawTableLoader.Apply(Table);
+                RawTableLoader.OnDataTableChanged(Table);
                 UECustom::UDataTableStore::Store(Table);
             });
         }
