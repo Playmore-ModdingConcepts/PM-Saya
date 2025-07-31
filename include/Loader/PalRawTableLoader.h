@@ -6,6 +6,7 @@
 
 namespace UECustom {
 	class UDataTable;
+	class UCompositeDataTable;
 }
 
 namespace Palworld {
@@ -23,7 +24,11 @@ namespace Palworld {
 
 		void Initialize();
 
-        void Apply(UECustom::UDataTable* Table);
+        void OnDataTableChanged(UECustom::UDataTable* Table);
+
+        void Apply(const RC::StringType& TableName, UECustom::UDataTable* Table);
+
+        void Apply(UECustom::UCompositeDataTable* Table);
 
         void Apply(const nlohmann::json& Data, UECustom::UDataTable* Table, LoadResult& OutResult);
 
