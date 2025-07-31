@@ -123,7 +123,7 @@ namespace Palworld {
                 auto Table = TableIt->second;
                 auto Name = Table->GetNamePrivate().ToString();
                 LoadResult Result;
-                Apply(Key, Table, Result);
+                Apply(Value, Table, Result);
 
                 PS::Log<LogLevel::Normal>(STR("{}: {} rows updated, {} rows added, {} rows deleted, {} error{}.\n"),
                     Name, Result.SuccessfulModifications, Result.SuccessfulAdditions,
