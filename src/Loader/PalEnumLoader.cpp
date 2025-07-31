@@ -15,6 +15,13 @@ namespace Palworld {
     void PalEnumLoader::Initialize()
     {
         auto EnumClass = UECustom::UObjectGlobals::StaticFindObject<UClass*>(nullptr, nullptr, STR("/Script/CoreUObject.Enum"));
+
+        if (!EnumClass)
+        {
+            PS::Log<LogLevel::Error>(STR("Failed to get /Script/CoreUObject.Enum\n"));
+            return;
+        }
+
         TArray<UObject*> Results;
         UECustom::UObjectGlobals::GetObjectsOfClass(EnumClass, Results);
 

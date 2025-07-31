@@ -23,9 +23,15 @@ public:
     PalSchema() : CppUserModBase()
     {
         ModName = STR("PalSchema");
-        ModVersion = STR("0.4.2");
+        ModVersion = STR("0.4.3");
         ModDescription = STR("Allows modifying of Palworld's assets dynamically.");
         ModAuthors = STR("Okaetsu");
+
+        if (!has_member_variable_layout())
+        {
+            PS::Log<LogLevel::Error>(STR("MemberVariableLayout.ini is missing, unable to start PalSchema. Please ensure you are using UE4SS from https://github.com/Okaetsu/RE-UE4SS/releases/tag/experimental-palworld which comes with MemberVariableLayout.ini\n"));
+            return;
+        }
 
         PS::PSConfig::Load();
 
@@ -42,6 +48,13 @@ public:
 
     ~PalSchema() override
     {
+    }
+
+    auto has_member_variable_layout() -> bool
+    {
+        namespace fs = std::filesystem;
+        auto MemberVariableLayoutFile = fs::path(UE4SSProgram::get_program().get_working_directory()) / "MemberVariableLayout.ini";
+        return fs::exists(MemberVariableLayoutFile);
     }
 
     auto reload_mods() -> void
