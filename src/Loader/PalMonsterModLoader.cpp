@@ -99,6 +99,14 @@ namespace Palworld {
 			}
 		}
 
+        // IsPal is false by default, so we set it to true here, because PalMonsterModLoader is meant for Pals specifically.
+        // There's some side effects that can happen if it's set to false, such as the Pal not showing up in Paldeck.
+        auto IsPalProp = MonsterRowStruct->GetPropertyByName(STR("IsPal"));
+        if (IsPalProp)
+        {
+            *IsPalProp->ContainerPtrToValuePtr<bool>(MonsterRowData) = true;
+        }
+
 		m_dataTable->AddRow(CharacterId, *reinterpret_cast<UECustom::FTableRowBase*>(MonsterRowData));
 
 		AddTranslations(CharacterId, properties);

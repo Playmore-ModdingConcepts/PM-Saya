@@ -233,6 +233,12 @@ namespace Palworld {
 
         // Should in theory be more consistent than finding a signature for BlueprintGeneratedClass::PostLoad
         auto BlueprintGeneratedClass = UECustom::UObjectGlobals::StaticFindObject<UClass*>(nullptr, nullptr, STR("/Script/Engine.BlueprintGeneratedClass"), false);
+        if (!BlueprintGeneratedClass)
+        {
+            PS::Log<LogLevel::Error>(STR("Failed to find BlueprintGeneratedClass. Cannot hook PostLoad.\n"));
+            return;
+        }
+
         uintptr_t* VTablePtr = *(uintptr_t**)BlueprintGeneratedClass->GetClassDefaultObject();
         void* PostLoadPtr = (void*)VTablePtr[20];
 
