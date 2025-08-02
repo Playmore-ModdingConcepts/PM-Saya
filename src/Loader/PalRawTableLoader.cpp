@@ -52,8 +52,6 @@ namespace Palworld {
             PS::Log<LogLevel::Normal>(STR("{}: {} rows updated, {} rows added, {} rows deleted, {} error{}.\n"),
                 TableName, Result.SuccessfulModifications, Result.SuccessfulAdditions,
                 Result.SuccessfulDeletions, Result.ErrorCount, Result.ErrorCount > 1 || Result.ErrorCount == 0 ? STR("s") : STR(""));
-
-            m_tableDataMap.erase(TableName);
         }
     }
 
