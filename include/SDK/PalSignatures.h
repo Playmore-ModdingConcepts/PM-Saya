@@ -40,8 +40,6 @@ namespace Palworld {
             { "GetObjectsOfClass", "E8 ?? ?? ?? ?? 45 33 C0 48 89 6C 24 30 33 C9 41 8D 50 30 E8" },
             // FMemory::Free for GMalloc
             { "FMemory::Free", "E8 ?? ?? ?? ?? 4C 8D 45 D7 48 8D 55 27 48 8D 4D 17 E8" },
-            // Very important, unlikely to change ever.
-            { "FEngineLoop::Init", "E8 ?? ?? ?? ?? 48 8D 8C 24 B0 00 00 00 8B F0" },
         };
     };
 }
