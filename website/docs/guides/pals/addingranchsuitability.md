@@ -19,7 +19,7 @@ Let's get started with PMK (Palworld Modding Kit). After you're done installing 
 
 ### Creating the Assets and Folders
 
-1. You'll be greeted with the Editor looking somewhat like this. If you have the `Assets` downloaded from the requirements, navigate to the .zip you downloaded and extract the Content folder from within the .zip into the root of your PMK. It might ask you to replace the folder itself, just click yes. If you already have certain assets like the animations, you can skip replacing those.
+1. You'll be greeted with the Editor looking somewhat like the picture below. If you have the `Assets` downloaded from the requirements, navigate to the .zip you downloaded and extract the Content folder from within the .zip into the root of where you installed PMK. Note that you should not drag the files directly into the editor as this will potentially lock the editor up and you'll have to use the task manager to close it. Install the asset files from outside the editor.
 
 ![Screenshot of the Modding Kit editor window](assets/tutorial1/Editor.png)
 
