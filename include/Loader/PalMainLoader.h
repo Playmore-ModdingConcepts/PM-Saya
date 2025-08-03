@@ -14,6 +14,10 @@
 #include "Loader/PalEnumLoader.h"
 #include "FileWatch.hpp"
 
+namespace RC::Unreal {
+    class AGameModeBase;
+}
+
 namespace UECustom {
     class UDataTable;
 }

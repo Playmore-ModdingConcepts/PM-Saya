@@ -7,7 +7,6 @@
 #include "SDK/Classes/UCompositeDataTable.h"
 #include "SDK/Helper/PropertyHelper.h"
 #include "Utility/Logging.h"
-#include "Helpers/String.hpp"
 #include "Loader/PalRawTableLoader.h"
 
 using namespace RC;
