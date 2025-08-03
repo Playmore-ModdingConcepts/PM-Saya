@@ -1,14 +1,14 @@
 #include "Unreal/UClass.hpp"
-#include "SDK/Classes/UDataTable.h"
 #include "Unreal/UObjectGlobals.hpp"
 #include "Unreal/UScriptStruct.hpp"
 #include "Unreal/FProperty.hpp"
 #include "Unreal/NameTypes.hpp"
+#include "SDK/Classes/UDataTable.h"
+#include "SDK/Classes/UCompositeDataTable.h"
 #include "SDK/Helper/PropertyHelper.h"
 #include "Utility/Logging.h"
 #include "Helpers/String.hpp"
 #include "Loader/PalRawTableLoader.h"
-#include "SDK/Classes/UCompositeDataTable.h"
 
 using namespace RC;
 using namespace RC::Unreal;
@@ -180,8 +180,9 @@ namespace Palworld {
         catch (const std::exception& e)
         {
             auto TableName = Table->GetNamePrivate().ToString();
-            OutResult.ErrorCount++;
+            RowStruct->DestroyStruct(NewRowData);
             FMemory::Free(NewRowData);
+            OutResult.ErrorCount++;
             PS::Log<LogLevel::Error>(STR("Failed to add Row '{}' in {}: {}\n"), RowName.ToString(), TableName, RC::to_generic_string(e.what()));
         }
     }
