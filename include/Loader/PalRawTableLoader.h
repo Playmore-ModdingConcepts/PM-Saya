@@ -47,6 +47,8 @@ namespace Palworld {
 
         void DeleteRow(UECustom::UDataTable* Table, const RC::Unreal::FName& RowName, LoadResult& OutResult);
 
+        void ModifyRowProperties(UECustom::UDataTable* Table, const RC::Unreal::FName& RowName, void* RowPtr, const nlohmann::json& Data, LoadResult& OutResult);
+
         void AddToTableDataMap(const std::string& TableName, const nlohmann::json& Data);
 	};
 }

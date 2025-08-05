@@ -20,9 +20,12 @@ namespace RC::Unreal {
 
 namespace UECustom {
     class UDataTable;
+    class UCompositeDataTable;
 }
 
 namespace Palworld {
+    class UPalStaticItemDataTable;
+
 	class PalMainLoader {
 	public:
         PalMainLoader();
@@ -90,24 +93,27 @@ namespace Palworld {
 
         void ParseJsonFilesInPath(const std::filesystem::path& path, const std::function<void(const nlohmann::json&)>& callback);
     private:
-        static void HandleDataTableChanged(UECustom::UDataTable* This, RC::Unreal::FName param_1);
-
         static void PostLoad(RC::Unreal::UClass* This);
-
-        static void InitGameState(RC::Unreal::AGameModeBase* This);
 
         static void GetPakFolders(const RC::Unreal::TCHAR* CmdLine, RC::Unreal::TArray<RC::Unreal::FString>* OutPakFolders);
 
+        static void OnDataTableSerialized(UECustom::UDataTable* This, RC::Unreal::FArchive* Archive);
+
+        static void OnGameInstanceInit(RC::Unreal::UObject* This);
+
+        static RC::Unreal::UObject* StaticItemDataTable_Get(UPalStaticItemDataTable* This, RC::Unreal::FName ItemId);
+
         bool m_hasInit = false;
 
-        static inline std::vector<std::function<void(UECustom::UDataTable*)>> HandleDataTableChangedCallbacks;
-        static inline std::vector<std::function<void(RC::Unreal::AGameModeBase*)>> InitGameStateCallbacks;
+        static inline std::vector<std::function<void(UECustom::UDataTable*)>> DatatableSerializeCallbacks;
+        static inline std::vector<std::function<void(RC::Unreal::UObject*)>> GameInstanceInitCallbacks;
         static inline std::vector<std::function<void(RC::Unreal::UClass*)>> PostLoadCallbacks;
         static inline std::vector<std::function<void()>> GetPakFoldersCallback;
 
-        static inline SafetyHookInline HandleDataTableChanged_Hook;
-        static inline SafetyHookInline InitGameState_Hook;
+        static inline SafetyHookInline DatatableSerialize_Hook;
+        static inline SafetyHookInline GameInstanceInit_Hook;
         static inline SafetyHookInline PostLoad_Hook;
         static inline SafetyHookInline GetPakFolders_Hook;
+        static inline SafetyHookInline StaticItemDataTable_Get_Hook;
 	};
 }

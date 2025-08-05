@@ -2,6 +2,7 @@
 #include "Unreal/UClass.hpp"
 #include "Unreal/UScriptStruct.hpp"
 #include "SDK/Classes/UDataTable.h"
+#include "SDK/Classes/PalStaticItemDataTable.h"
 #include "SDK/Classes/PalStaticArmorItemData.h"
 #include "SDK/Classes/PalStaticConsumeItemData.h"
 #include "SDK/Classes/PalStaticWeaponItemData.h"
@@ -12,6 +13,7 @@
 #include "Helpers/String.hpp"
 #include "Utility/Logging.h"
 #include "Loader/PalItemModLoader.h"
+#include <SDK/Structs/FPalLocalizedTextData.h>
 
 using namespace RC;
 using namespace RC::Unreal;
@@ -34,6 +36,8 @@ namespace Palworld {
 
         m_descriptionTranslationTable = UObjectGlobals::StaticFindObject<UECustom::UDataTable*>(nullptr, nullptr,
             STR("/Game/Pal/DataTable/Text/DT_ItemDescriptionText.DT_ItemDescriptionText"));
+
+        InitializeDummyTranslations();
 	}
 
 	void PalItemModLoader::Load(const nlohmann::json& Data)
@@ -63,6 +67,82 @@ namespace Palworld {
             }
 		}
 	}
+
+    UPalStaticItemDataBase* PalItemModLoader::AddDummyItem(UPalStaticItemDataTable* StaticItemDataTable, const FName& ItemId)
+    {
+        auto DataAsset = StaticItemDataTable->GetDataAsset();
+
+        UClass* DatabaseClass = UPalStaticItemDataBase::StaticClass();
+
+        if (!DatabaseClass->GetPropertyByNameInChain(STR("ID")))
+        {
+            throw std::runtime_error("Property 'ID' has changed in DA_StaticItemDataAsset. Update to Pal Schema is needed.");
+        }
+
+        if (!DatabaseClass->GetPropertyByNameInChain(STR("DynamicItemDataClass")))
+        {
+            throw std::runtime_error("Property 'DynamicItemDataClass' has changed in DA_StaticItemDataAsset. Update to Pal Schema is needed.");
+        }
+
+        FStaticConstructObjectParameters ConstructParams(DatabaseClass, DataAsset);
+        ConstructParams.Name = NAME_None;
+
+        auto Item = UObjectGlobals::StaticConstructObject<UPalStaticItemDataBase*>(ConstructParams);
+
+        auto IDProperty = Item->GetValuePtrByPropertyNameInChain<FName>(STR("ID"));
+        if (IDProperty)
+        {
+            *IDProperty = ItemId;
+        }
+
+        auto OverrideNameMsgID = Item->GetValuePtrByPropertyNameInChain<FName>(STR("OverrideNameMsgID"));
+        if (OverrideNameMsgID)
+        {
+            *OverrideNameMsgID = ItemId;
+        }
+
+        auto OverrideDescMsgID = Item->GetValuePtrByPropertyNameInChain<FName>(STR("OverrideDescMsgID"));
+        if (OverrideDescMsgID)
+        {
+            *OverrideDescMsgID = FName(STR("ITEM_DESC_StaticDummy"), FNAME_Add);
+        }
+
+        auto IconTexture = Item->GetValuePtrByPropertyNameInChain<UECustom::TSoftObjectPtr<UObject>>(STR("IconTexture"));
+        if (IconTexture)
+        {
+            *IconTexture = UECustom::TSoftObjectPtr<UObject>(UECustom::FSoftObjectPath(STR("/Game/Pal/Texture/UI/Main_Menu/T_icon_unknown.T_icon_unknown")));
+        }
+
+        auto TypeA = Item->GetValuePtrByPropertyNameInChain<uint8>(STR("TypeA"));
+        if (TypeA)
+        {
+            *TypeA = 5U; // Material
+        }
+
+        auto TypeB = Item->GetValuePtrByPropertyNameInChain<uint8>(STR("TypeB"));
+        if (TypeB)
+        {
+            *TypeB = 28U; // MaterialProcessing
+        }
+
+        auto SortID = Item->GetValuePtrByPropertyNameInChain<int>(STR("SortID"));
+        if (SortID)
+        {
+            *SortID = 5001;
+        }
+
+        auto MaxStackCount = Item->GetValuePtrByPropertyNameInChain<int>(STR("MaxStackCount"));
+        if (MaxStackCount)
+        {
+            *MaxStackCount = 9999;
+        }
+
+        DataAsset->StaticItemDataMap.Add(ItemId, Item);
+
+        PS::Log<LogLevel::Verbose>(STR("Created a dummy item for {}\n"), ItemId.ToString());
+
+        return Item;
+    }
 
 	void PalItemModLoader::Add(const RC::Unreal::FName& ItemId, const nlohmann::json& Data)
 	{
@@ -348,4 +428,11 @@ namespace Palworld {
 			}
 		}
 	}
+
+    void PalItemModLoader::InitializeDummyTranslations()
+    {
+        FPalLocalizedTextData NewDescRow{};
+        NewDescRow.TextData = FText(STR("A memory of a scrapped item from the past."));
+        m_descriptionTranslationTable->AddRow(FName(STR("ITEM_DESC_StaticDummy"), FNAME_Add), NewDescRow);
+    }
 }
