@@ -16,7 +16,7 @@ public:
     PalSchema() : CppUserModBase()
     {
         ModName = STR("PalSchema");
-        ModVersion = STR("0.4.3");
+        ModVersion = STR("0.5.0");
         ModDescription = STR("Allows modifying of Palworld's assets dynamically.");
         ModAuthors = STR("Okaetsu");
 

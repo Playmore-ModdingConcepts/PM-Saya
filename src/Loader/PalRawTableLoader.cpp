@@ -5,6 +5,7 @@
 #include "Unreal/NameTypes.hpp"
 #include "SDK/Classes/UDataTable.h"
 #include "SDK/Classes/UCompositeDataTable.h"
+#include "SDK/Structs/Custom/FManagedStruct.h"
 #include "SDK/Helper/PropertyHelper.h"
 #include "Utility/Logging.h"
 #include "Loader/PalRawTableLoader.h"
@@ -154,20 +155,17 @@ namespace Palworld {
     void PalRawTableLoader::AddRow(UECustom::UDataTable* Table, const FName& RowName, const nlohmann::json& Data, LoadResult& OutResult)
     {
         auto RowStruct = Table->GetRowStruct().Get();
-        auto NewRowData = FMemory::Malloc(RowStruct->GetStructureSize());
-        RowStruct->InitializeStruct(NewRowData);
+        FManagedStruct NewRowData(RowStruct);
 
         try
         {
-            ModifyRowProperties(Table, RowName, NewRowData, Data, OutResult);
-            Table->AddRow(RowName, *reinterpret_cast<UECustom::FTableRowBase*>(NewRowData));
+            ModifyRowProperties(Table, RowName, NewRowData.GetData(), Data, OutResult);
+            Table->AddRow(RowName, *reinterpret_cast<UECustom::FTableRowBase*>(NewRowData.GetData()));
             OutResult.SuccessfulAdditions++;
         }
         catch (const std::exception& e)
         {
             auto TableName = Table->GetNamePrivate().ToString();
-            RowStruct->DestroyStruct(NewRowData);
-            FMemory::Free(NewRowData);
             OutResult.ErrorCount++;
             PS::Log<LogLevel::Error>(STR("Failed to add Row '{}' in {}: {}\n"), RowName.ToString(), TableName, RC::to_generic_string(e.what()));
         }
