@@ -7,7 +7,7 @@
 #include "SDK/Classes/Async.h"
 #include "SDK/Classes/Custom/UDataTableStore.h"
 #include "SDK/Classes/Custom/UObjectGlobals.h"
-#include "SDK/Classes/UDataTable.h"
+#include "SDK/Classes/UCompositeDataTable.h"
 #include "SDK/Classes/PalUtility.h"
 #include "SDK/PalSignatures.h"
 #include "SDK/StaticClassStorage.h"
@@ -25,44 +25,39 @@ namespace Palworld {
 
     PalMainLoader::~PalMainLoader()
     {
-        auto expected1 = HandleDataTableChanged_Hook.disable();
-        HandleDataTableChanged_Hook = {};
+        auto expected1 = DatatableSerialize_Hook.disable();
+        DatatableSerialize_Hook = {};
 
-        auto expected2 = InitGameState_Hook.disable();
-        InitGameState_Hook = {};
+        auto expected2 = GameInstanceInit_Hook.disable();
+        GameInstanceInit_Hook = {};
 
         auto expected3 = PostLoad_Hook.disable();
         PostLoad_Hook = {};
 
-        HandleDataTableChangedCallbacks.clear();
-        InitGameStateCallbacks.clear();
+        auto expected4 = GetPakFolders_Hook.disable();
+        GetPakFolders_Hook = {};
+        DatatableSerializeCallbacks.clear();
+        GameInstanceInitCallbacks.clear();
         PostLoadCallbacks.clear();
+        GetPakFoldersCallback.clear();
     }
 
     void PalMainLoader::PreInitialize()
     {
-        auto InitGameState_Address = Palworld::SignatureManager::GetSignature("AGameModeBase::InitGameState");
-        if (InitGameState_Address)
+        auto DatatableSerializeFuncPtr = Palworld::SignatureManager::GetSignature("UDataTable::Serialize");
+        if (DatatableSerializeFuncPtr)
         {
-            InitGameState_Hook = safetyhook::create_inline(InitGameState_Address,
-                reinterpret_cast<void*>(InitGameState));
+            DatatableSerialize_Hook = safetyhook::create_inline(reinterpret_cast<void*>(DatatableSerializeFuncPtr),
+                OnDataTableSerialized);
 
-            InitGameStateCallbacks.push_back([&](AGameModeBase* Instance) {
-                InitLoaders();
+            DatatableSerializeCallbacks.push_back([&](UECustom::UDataTable* Table) {
+                InitCore();
+                UECustom::UDataTableStore::Store(Table);
+                RawTableLoader.OnDataTableChanged(Table);
             });
         }
 
-        auto HandleDataTableChanged_Address = Palworld::SignatureManager::GetSignature("UDataTable::HandleDataTableChanged");
-        if (HandleDataTableChanged_Address)
         {
-            HandleDataTableChanged_Hook = safetyhook::create_inline(reinterpret_cast<void*>(HandleDataTableChanged_Address),
-                HandleDataTableChanged);
-
-            HandleDataTableChangedCallbacks.push_back([&](UECustom::UDataTable* Table) {
-                InitCore();
-                RawTableLoader.OnDataTableChanged(Table);
-                UECustom::UDataTableStore::Store(Table);
-            });
         }
 
         SetupAlternativePakPathReader();
@@ -239,8 +234,8 @@ namespace Palworld {
             return;
         }
 
-        uintptr_t* VTablePtr = *(uintptr_t**)BlueprintGeneratedClass->GetClassDefaultObject();
-        void* PostLoadPtr = (void*)VTablePtr[20];
+        uintptr_t* BGCVTablePtr = *(uintptr_t**)BlueprintGeneratedClass->GetClassDefaultObject();
+        void* PostLoadPtr = (void*)BGCVTablePtr[20];
 
         PostLoadCallbacks.push_back([&](UClass* BPGeneratedClass) {
             BlueprintModLoader.OnPostLoadDefaultObject(BPGeneratedClass, BPGeneratedClass->GetClassDefaultObject());
@@ -248,6 +243,23 @@ namespace Palworld {
 
         PostLoad_Hook = safetyhook::create_inline(PostLoadPtr,
             reinterpret_cast<void*>(PostLoad));
+
+        auto PalGameInstanceClass = UECustom::UObjectGlobals::StaticFindObject<UClass*>(nullptr, nullptr, STR("/Script/Pal.PalGameInstance"));
+        if (!PalGameInstanceClass)
+        {
+            PS::Log<LogLevel::Error>(STR("Failed to find PalGameInstance. Cannot hook OnGameInstanceInit.\n"));
+            return;
+        }
+
+        uintptr_t** PGIVTablePtr = *(uintptr_t***)PalGameInstanceClass->GetClassDefaultObject();
+        auto GameInstanceInitPtr = PGIVTablePtr[90];
+
+        GameInstanceInitCallbacks.push_back([&](UObject* Instance) {
+            InitLoaders();
+        });
+
+        GameInstanceInit_Hook = safetyhook::create_inline(GameInstanceInitPtr,
+            reinterpret_cast<void*>(OnGameInstanceInit));
 
         PS::Log<LogLevel::Verbose>(STR("Initialized Core\n"));
     }
@@ -466,16 +478,6 @@ namespace Palworld {
         }
     }
 
-    void PalMainLoader::HandleDataTableChanged(UECustom::UDataTable* This, FName param_1)
-    {
-        for (auto& Callback : HandleDataTableChangedCallbacks)
-        {
-            Callback(This);
-        }
-
-        HandleDataTableChanged_Hook.call(This, param_1);
-    }
-
     void PalMainLoader::PostLoad(UClass* This)
     {
         PostLoad_Hook.call(This);
@@ -484,23 +486,6 @@ namespace Palworld {
         {
             Callback(This);
         }
-    }
-
-    void PalMainLoader::InitGameState(AGameModeBase* This)
-    {
-        PS::Log<LogLevel::Verbose>(STR("Calling Original AGameModeBase::InitGameState\n"));
-        InitGameState_Hook.call(This);
-
-        PS::Log<LogLevel::Verbose>(STR("Firing AGameModeBase::InitGameState Callbacks...\n"));
-        for (auto& Callback : InitGameStateCallbacks)
-        {
-            Callback(This);
-        }
-
-        auto expected = InitGameState_Hook.disable();
-        InitGameState_Hook = {};
-
-        PS::Log<LogLevel::Verbose>(STR("Returning from AGameModeBase::InitGameState...\n"));
     }
 
     void PalMainLoader::GetPakFolders(const TCHAR* CmdLine, TArray<FString>* OutPakFolders)
@@ -526,5 +511,25 @@ namespace Palworld {
 
         // If GMalloc isn't properly initialized, accessing the TArray will crash.
         OutPakFolders->Add(FString(AbsolutePathWithSuffix.c_str()));
+    }
+
+    void PalMainLoader::OnDataTableSerialized(UECustom::UDataTable* This, RC::Unreal::FArchive* Archive)
+    {
+        DatatableSerialize_Hook.call(This, Archive);
+
+        for (auto& Callback : DatatableSerializeCallbacks)
+        {
+            Callback(This);
+        }
+    }
+
+    void PalMainLoader::OnGameInstanceInit(RC::Unreal::UObject* This)
+    {
+        GameInstanceInit_Hook.call(This);
+
+        for (auto& Callback : GameInstanceInitCallbacks)
+        {
+            Callback(This);
+        }
     }
 }

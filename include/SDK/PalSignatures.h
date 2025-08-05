@@ -18,7 +18,6 @@ namespace Palworld {
             // Blueprint Loader apply logic
             { "UBlueprintGeneratedClass::PostLoadDefaultObject", "48 89 5C 24 08 48 89 74 24 10 57 48 83 EC 30 48 8D 99 58 03 00 00" },
             // Raw Table apply logic
-            { "UDataTable::HandleDataTableChanged", "48 89 54 24 10 55 53 56 48 8D 6C 24 B9" },
             { "FPakPlatformFile::GetPakFolders", "48 89 5C 24 08 48 89 74 24 10 48 89 7C 24 18 4C 89 74 24 20 55 48 8B EC 48 83 EC 40 48 8D 4D F0 48 8B DA E8" },
             // Important so we can easily run things on the Game Thread
             { "AsyncTask", "48 8B C4 41 54 41 57 48 81 EC B8 00 00 00 48 89 58 08" },
@@ -40,6 +39,8 @@ namespace Palworld {
             { "GetObjectsOfClass", "E8 ?? ?? ?? ?? 45 33 C0 48 89 6C 24 30 33 C9 41 8D 50 30 E8" },
             // FMemory::Free for GMalloc
             { "FMemory::Free", "E8 ?? ?? ?? ?? 4C 8D 45 D7 48 8D 55 27 48 8D 4D 17 E8" },
+            // Raw Tables
+            { "UDataTable::Serialize", "E8 ?? ?? ?? ?? 41 F6 06 01 0F 84 1D 03 00 00 48 89 5C 24 50" },
         };
     };
 }

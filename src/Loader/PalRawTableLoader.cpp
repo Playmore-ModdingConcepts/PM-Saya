@@ -49,7 +49,7 @@ namespace Palworld {
             }
 
             PS::Log<LogLevel::Normal>(STR("{}: {} rows updated, {} rows added, {} rows deleted, {} error{}.\n"),
-                TableName, Result.SuccessfulModifications, Result.SuccessfulAdditions,
+                Table->GetName(), Result.SuccessfulModifications, Result.SuccessfulAdditions,
                 Result.SuccessfulDeletions, Result.ErrorCount, Result.ErrorCount > 1 || Result.ErrorCount == 0 ? STR("s") : STR(""));
         }
     }
@@ -60,7 +60,11 @@ namespace Palworld {
         auto ParentTables = CompositeTable->GetParentTables();
         for (auto& ParentTable : ParentTables)
         {
-            Apply(Table->GetName(), ParentTable.Get());
+            auto ParentTableName = ParentTable->GetName();
+            if (ParentTableName.ends_with(STR("_Common")))
+            {
+                Apply(Table->GetName(), ParentTable.Get());
+            }
         }
     }
 
@@ -136,15 +140,7 @@ namespace Palworld {
             auto RowStruct = Table->GetRowStruct().Get();
             for (auto& [Key, Row] : Table->GetRowMap())
             {
-                for (auto Property : RowStruct->ForEachPropertyInChain())
-                {
-                    auto PropertyName = RC::to_string(Property->GetName());
-                    if (Data.contains(PropertyName))
-                    {
-                        PropertyHelper::CopyJsonValueToContainer(Row, Property, Data.at(PropertyName));
-                    }
-                }
-
+                ModifyRowProperties(Table, Key, Row, Data, OutResult);
                 OutResult.SuccessfulModifications++;
             }
         }
@@ -163,17 +159,8 @@ namespace Palworld {
 
         try
         {
-            for (auto Property : RowStruct->ForEachPropertyInChain())
-            {
-                auto PropertyName = RC::to_string(Property->GetName());
-                if (Data.contains(PropertyName))
-                {
-                    PropertyHelper::CopyJsonValueToContainer(NewRowData, Property, Data.at(PropertyName));
-                }
-            }
-
+            ModifyRowProperties(Table, RowName, NewRowData, Data, OutResult);
             Table->AddRow(RowName, *reinterpret_cast<UECustom::FTableRowBase*>(NewRowData));
-
             OutResult.SuccessfulAdditions++;
         }
         catch (const std::exception& e)
@@ -191,20 +178,7 @@ namespace Palworld {
         try
         {
             auto RowStruct = Table->GetRowStruct().Get();
-            if (!Data.is_object())
-            {
-                throw std::runtime_error(std::format("Value for {} must be an object", RC::to_string(RowName.ToString())));
-            }
-
-            for (auto Property : RowStruct->ForEachPropertyInChain())
-            {
-                auto PropertyName = RC::to_string(Property->GetName());
-                if (Data.contains(PropertyName))
-                {
-                    PropertyHelper::CopyJsonValueToContainer(Row, Property, Data.at(PropertyName));
-                }
-            }
-
+            ModifyRowProperties(Table, RowName, Row, Data, OutResult);
             OutResult.SuccessfulModifications++;
         }
         catch (const std::exception& e)
@@ -219,6 +193,31 @@ namespace Palworld {
     {
         Table->RemoveRow(RowName);
         OutResult.SuccessfulDeletions++;
+    }
+
+    void PalRawTableLoader::ModifyRowProperties(UECustom::UDataTable* Table, const FName& RowName, void* RowPtr, const nlohmann::json& Data, 
+                                                LoadResult& OutResult)
+    {
+        if (!Data.is_object())
+        {
+            throw std::runtime_error(std::format("Value for {} must be an object", RC::to_string(RowName.ToString())));
+        }
+
+        auto RowStruct = Table->GetRowStruct().Get();
+        for (auto& [Key, Value] : Data.items())
+        {
+            auto KeyWide = RC::to_generic_string(Key);
+            auto Property = PropertyHelper::GetPropertyByName(RowStruct, KeyWide);
+            if (Property)
+            {
+                PropertyHelper::CopyJsonValueToContainer(RowPtr, Property, Value);
+            }
+            else
+            {
+                OutResult.ErrorCount++;
+                PS::Log<LogLevel::Warning>(STR("Property '{}' not found in Row '{}' in {}.\n"), KeyWide, RowName.ToString(), Table->GetNamePrivate().ToString());
+            }
+        }
     }
 
     void PalRawTableLoader::AddToTableDataMap(const std::string& TableName, const nlohmann::json& Data)
