@@ -24,6 +24,8 @@ namespace UECustom {
 }
 
 namespace Palworld {
+    class UPalStaticItemDataTable;
+
 	class PalMainLoader {
 	public:
         PalMainLoader();
@@ -99,6 +101,8 @@ namespace Palworld {
 
         static void OnGameInstanceInit(RC::Unreal::UObject* This);
 
+        static RC::Unreal::UObject* StaticItemDataTable_Get(UPalStaticItemDataTable* This, RC::Unreal::FName ItemId);
+
         bool m_hasInit = false;
 
         static inline std::vector<std::function<void(UECustom::UDataTable*)>> DatatableSerializeCallbacks;
@@ -110,5 +114,6 @@ namespace Palworld {
         static inline SafetyHookInline GameInstanceInit_Hook;
         static inline SafetyHookInline PostLoad_Hook;
         static inline SafetyHookInline GetPakFolders_Hook;
+        static inline SafetyHookInline StaticItemDataTable_Get_Hook;
 	};
 }

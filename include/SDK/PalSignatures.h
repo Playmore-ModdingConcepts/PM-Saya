@@ -41,6 +41,7 @@ namespace Palworld {
             { "FMemory::Free", "E8 ?? ?? ?? ?? 4C 8D 45 D7 48 8D 55 27 48 8D 4D 17 E8" },
             // Raw Tables
             { "UDataTable::Serialize", "E8 ?? ?? ?? ?? 41 F6 06 01 0F 84 1D 03 00 00 48 89 5C 24 50" },
+            { "UPalStaticItemDataTable::Get", "E8 ?? ?? ?? ?? 48 85 C0 74 0B 8B 40" },
         };
     };
 }
