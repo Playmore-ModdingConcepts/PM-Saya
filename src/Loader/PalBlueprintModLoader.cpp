@@ -239,7 +239,7 @@ namespace Palworld {
         for (auto& [InnerKey, InnerValue] : ComponentData.items())
         {
             auto ComponentPropertyName = RC::to_generic_string(InnerKey);
-            auto ComponentProperty = Component->GetPropertyByNameInChain(ComponentPropertyName.c_str());
+            auto ComponentProperty = PropertyHelper::GetPropertyByName(Component->GetClassPrivate(), ComponentPropertyName.c_str());
             if (!ComponentProperty)
             {
                 PS::Log<LogLevel::Warning>(STR("Property {} doesn't exist in {}\n"), ComponentPropertyName, Component->GetName());
