@@ -555,6 +555,11 @@ namespace Palworld {
             return StaticItemData;
         }
 
+        if (ItemId.ToString().starts_with(STR("SkillUnlock_")))
+        {
+            return StaticItemData;
+        }
+
         // If we got to this point, that means we actually have a nullptr to some item that used to exist, which means it is not safe to return nullptr.
         // Instead, we'll generate a dummy item for that ItemId and return it.
         // Subsequent calls to this hook with the same ItemId will just return in the first if block since it was added to StaticItemDataAsset.
