@@ -73,13 +73,6 @@ const config: Config = {
           label: 'Documentation',
         },
         {
-          href: 'https://discord.gg/SZFBGuWMEU',
-          position: 'right',
-          className: 'header-discord-link',
-          'aria-label': 'Discord Server',
-          'title': 'Join the Discord Server'
-        },
-        {
           href: 'https://github.com/Okaetsu/PalSchema',
           position: 'right',
           className: 'header-github-link',
