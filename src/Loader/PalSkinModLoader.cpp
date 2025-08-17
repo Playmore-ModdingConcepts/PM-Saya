@@ -3,9 +3,12 @@
 #include "Unreal/UObjectGlobals.hpp"
 #include "Unreal/UScriptStruct.hpp"
 #include "Unreal/FProperty.hpp"
+#include "Unreal/Property/FNameProperty.hpp"
+#include <SDK/Classes/Custom/UObjectGlobals.h>
 #include "SDK/Classes/UDataAsset.h"
 #include "SDK/Classes/UDataTable.h"
 #include "SDK/Classes/KismetInternationalizationLibrary.h"
+#include "SDK/Structs/Custom/FManagedStruct.h"
 #include "SDK/Structs/FPalCharacterIconDataRow.h"
 #include "SDK/Structs/FPalBPClassDataRow.h"
 #include "SDK/Helper/PropertyHelper.h"
@@ -25,13 +28,13 @@ namespace Palworld {
 
 	void PalSkinModLoader::Initialize()
 	{
-		m_skinDataAsset = UObjectGlobals::StaticFindObject<UECustom::UDataAsset*>(nullptr, nullptr,
+		m_skinDataAsset = UECustom::UObjectGlobals::StaticFindObject<UECustom::UDataAsset*>(nullptr, nullptr,
 			STR("/Game/Pal/DataAsset/Skin/DA_StaticSkinDataAsset.DA_StaticSkinDataAsset"));
 
-		m_skinIconTable = UObjectGlobals::StaticFindObject<UECustom::UDataTable*>(nullptr, nullptr,
+		m_skinIconTable = UECustom::UObjectGlobals::StaticFindObject<UECustom::UDataTable*>(nullptr, nullptr,
 			STR("/Game/Pal/DataTable/Character/DT_PalCharacterIconDataTable_SkinOverride.DT_PalCharacterIconDataTable_SkinOverride"));
 
-		m_skinTranslationTable = UObjectGlobals::StaticFindObject<UECustom::UDataTable*>(nullptr, nullptr,
+		m_skinTranslationTable = UECustom::UObjectGlobals::StaticFindObject<UECustom::UDataTable*>(nullptr, nullptr,
 			STR("/Game/Pal/DataTable/Text/DT_UI_Common_Text.DT_UI_Common_Text"));
 	}
 
@@ -102,8 +105,9 @@ namespace Palworld {
         {
             throw std::runtime_error(std::format("Failed to set Database Class for '{}'", Type));
         }
-
-		if (!DatabaseClass->GetPropertyByNameInChain(STR("SkinName")))
+        
+        auto SkinNameProperty = PropertyHelper::GetPropertyByName<FNameProperty>(DatabaseClass, STR("SkinName"));
+		if (!SkinNameProperty)
 		{
 			throw std::runtime_error("Property 'SkinName' has changed in DA_StaticSkinDataAsset. Update to Pal Schema is needed.");
 		}
@@ -112,45 +116,43 @@ namespace Palworld {
 		ConstructParams.Name = NAME_None;
 
 		auto Item = UObjectGlobals::StaticConstructObject(ConstructParams);
+        SkinNameProperty->SetPropertyValueInContainer(Item, SkinId);
 
-		auto SkinNameProperty = Item->GetValuePtrByPropertyNameInChain<FName>(STR("SkinName"));
-		if (SkinNameProperty)
-		{
-			*SkinNameProperty = SkinId;
-		}
-
-		for (auto& Property : DatabaseClass->ForEachPropertyInChain())
-		{
-			auto PropertyName = RC::to_string(Property->GetName());
-			if (Data.contains(PropertyName))
-			{
-				PropertyHelper::CopyJsonValueToContainer(reinterpret_cast<uint8_t*>(Item), Property, Data.at(PropertyName));
-			}
-		}
+        for (auto& [Key, Value] : Data.items())
+        {
+            auto KeyWide = RC::to_generic_string(Key);
+            auto Property = PropertyHelper::GetPropertyByName(DatabaseClass, KeyWide);
+            if (Property)
+            {
+                PropertyHelper::CopyJsonValueToContainer(reinterpret_cast<uint8_t*>(Item), Property, Value);
+            }
+            else
+            {
+                PS::Log<LogLevel::Warning>(STR("Failed to modify property in {}, property {} doesn't exist in {}\n"), SkinId.ToString(), 
+                                                                                                                      KeyWide, DatabaseClass->GetName());
+            }
+        }
 
 		if (Data.contains("IconTexture"))
 		{
 			auto IconRowStruct = m_skinIconTable->GetRowStruct().Get();
-			auto IconProperty = IconRowStruct->GetPropertyByName(STR("Icon"));
+			auto IconProperty = PropertyHelper::GetPropertyByName(IconRowStruct, STR("Icon"));
 			if (!IconProperty)
 			{
 				throw std::runtime_error("Property 'Icon' has changed in DT_PalCharacterIconDataTable_SkinOverride. Update to Pal Schema is needed.");
 			}
 
-			auto IconRowData = FMemory::Malloc(IconRowStruct->GetStructureSize());
-			IconRowStruct->InitializeStruct(IconRowData);
-
+            FManagedStruct IconRowData(IconRowStruct);
 			try
 			{
-				PropertyHelper::CopyJsonValueToContainer(IconRowData, IconProperty, Data.at("IconTexture"));
+				PropertyHelper::CopyJsonValueToContainer(IconRowData.GetData(), IconProperty, Data.at("IconTexture"));
 			}
 			catch (const std::exception& e)
 			{
-				FMemory::Free(IconRowData);
 				throw std::runtime_error(e.what());
 			}
 
-			m_skinIconTable->AddRow(SkinId, *reinterpret_cast<UECustom::FTableRowBase*>(IconRowData));
+			m_skinIconTable->AddRow(SkinId, *reinterpret_cast<UECustom::FTableRowBase*>(IconRowData.GetData()));
 		}
 
 		if (Data.contains("Name"))
@@ -165,32 +167,46 @@ namespace Palworld {
 
 	void PalSkinModLoader::Edit(const FName& SkinId, UObject* Item, const nlohmann::json& Data)
 	{
-		for (auto& Property : Item->GetClassPrivate()->ForEachPropertyInChain())
-		{
-			auto PropertyName = RC::to_string(Property->GetName());
-			if (Data.contains(PropertyName))
-			{
-				PropertyHelper::CopyJsonValueToContainer(reinterpret_cast<uint8_t*>(Item), Property, Data.at(PropertyName));
-			}
-		}
+        auto SkinClass = Item->GetClassPrivate();
+        if (!SkinClass)
+        {
+            throw std::runtime_error(std::format("Skin Class for {} was invalid", RC::to_string(SkinId.ToString())));
+        }
 
-		auto SkinNameProperty = Item->GetValuePtrByPropertyNameInChain<FName>(STR("SkinName"));
-		if (SkinNameProperty)
-		{
-			if (Data.contains("Icon"))
-			{
-				auto IconRowStruct = m_skinIconTable->GetRowStruct().Get();
-				auto IconProperty = IconRowStruct->GetPropertyByName(STR("Icon"));
-				if (IconProperty)
-				{
-					auto Row = m_skinIconTable->FindRowUnchecked(*SkinNameProperty);
-					if (Row)
-					{
-						PropertyHelper::CopyJsonValueToContainer(Row, IconProperty, Data.at("Icon"));
-					}
-				}
-			}
-		}
+        for (auto& [Key, Value] : Data.items())
+        {
+            auto KeyWide = RC::to_generic_string(Key);
+            auto Property = PropertyHelper::GetPropertyByName(SkinClass, KeyWide);
+            if (Property)
+            {
+                PropertyHelper::CopyJsonValueToContainer(reinterpret_cast<uint8_t*>(Item), Property, Value);
+            }
+            else
+            {
+                PS::Log<LogLevel::Warning>(STR("Failed to modify property in {}, property {} doesn't exist in {}\n"), SkinId.ToString(),
+                    KeyWide, SkinClass->GetName());
+            }
+        }
+
+        auto SkinNameProperty = PropertyHelper::GetPropertyByName<FNameProperty>(SkinClass, STR("SkinName"));
+        if (!SkinNameProperty)
+        {
+            throw std::runtime_error("Property 'SkinName' has changed in DA_StaticSkinDataAsset. Update to Pal Schema is needed.");
+        }
+
+        if (Data.contains("Icon"))
+        {
+            auto IconRowStruct = m_skinIconTable->GetRowStruct().Get();
+            auto IconProperty = PropertyHelper::GetPropertyByName(IconRowStruct, STR("Icon"));
+            if (IconProperty)
+            {
+                auto Row = m_skinIconTable->FindRowUnchecked(*SkinNameProperty->GetPropertyValuePtrInContainer(Item));
+                if (Row)
+                {
+                    PropertyHelper::CopyJsonValueToContainer(Row, IconProperty, Data.at("Icon"));
+                }
+            }
+        }
 
 		if (Data.contains("Name"))
 		{
@@ -202,23 +218,21 @@ namespace Palworld {
 	{
 		auto FixedSkinId = std::format(STR("SKIN_NAME_{}"), SkinId.ToString());
 		auto TranslationRowStruct = m_skinTranslationTable->GetRowStruct().Get();
-		auto TextProperty = TranslationRowStruct->GetPropertyByName(STR("TextData"));
+
+        auto TextProperty = PropertyHelper::GetPropertyByName(TranslationRowStruct, STR("TextData"));
 		if (TextProperty)
 		{
-			auto TranslationRowData = FMemory::Malloc(TranslationRowStruct->GetStructureSize());
-			TranslationRowStruct->InitializeStruct(TranslationRowData);
-
+            FManagedStruct TranslationRowData(TranslationRowStruct);
 			try
 			{
-				PropertyHelper::CopyJsonValueToContainer(TranslationRowData, TextProperty, Data);
+				PropertyHelper::CopyJsonValueToContainer(TranslationRowData.GetData(), TextProperty, Data);
 			}
 			catch (const std::exception& e)
 			{
-				FMemory::Free(TranslationRowData);
 				throw std::runtime_error(e.what());
 			}
 
-			m_skinTranslationTable->AddRow(FName(FixedSkinId, FNAME_Add), *reinterpret_cast<UECustom::FTableRowBase*>(TranslationRowData));
+			m_skinTranslationTable->AddRow(FName(FixedSkinId, FNAME_Add), *reinterpret_cast<UECustom::FTableRowBase*>(TranslationRowData.GetData()));
 		}
 	}
 
@@ -226,7 +240,8 @@ namespace Palworld {
 	{
 		auto FixedSkinId = std::format(STR("SKIN_NAME_{}"), SkinId.ToString());
 		auto TranslationRowStruct = m_skinTranslationTable->GetRowStruct().Get();
-		auto TextProperty = TranslationRowStruct->GetPropertyByName(STR("TextData"));
+
+        auto TextProperty = PropertyHelper::GetPropertyByName(TranslationRowStruct, STR("TextData"));
 		if (TextProperty)
 		{
 			auto Row = m_skinTranslationTable->FindRowUnchecked(FName(FixedSkinId, FNAME_Add));
@@ -245,7 +260,7 @@ namespace Palworld {
 			return Iterator->second;
 		}
 
-		auto NewSkinDataBaseClass = UObjectGlobals::StaticFindObject<UClass*>(nullptr, nullptr, Path);
+		auto NewSkinDataBaseClass = UECustom::UObjectGlobals::StaticFindObject<UClass*>(nullptr, nullptr, Path.c_str());
 		if (!NewSkinDataBaseClass)
 		{
 			throw std::runtime_error(std::format("Failed to cache PalSkinDataBaseClass, '{}' doesn't exist", RC::to_string(Path)));
