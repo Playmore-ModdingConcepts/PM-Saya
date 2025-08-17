@@ -4,7 +4,7 @@
 #include "Unreal/UScriptStruct.hpp"
 #include "Unreal/FProperty.hpp"
 #include "Unreal/Property/FNameProperty.hpp"
-#include <SDK/Classes/Custom/UObjectGlobals.h>
+#include "SDK/Classes/Custom/UObjectGlobals.h"
 #include "SDK/Classes/UDataAsset.h"
 #include "SDK/Classes/UDataTable.h"
 #include "SDK/Classes/KismetInternationalizationLibrary.h"
@@ -40,12 +40,13 @@ namespace Palworld {
 
 	void PalSkinModLoader::Load(const nlohmann::json& json)
 	{
-		auto StaticSkinMap = m_skinDataAsset->GetValuePtrByPropertyName<TMap<FName, UObject*>>(STR("StaticSkinMap"));
-		if (!StaticSkinMap)
+        auto StaticSkinMapProperty = PropertyHelper::GetPropertyByName(m_skinDataAsset->GetClassPrivate(), STR("StaticSkinMap"));
+		if (!StaticSkinMapProperty)
 		{
 			throw std::runtime_error("Property 'StaticSkinMap' has changed name in DA_StaticSkinDataAsset, update is required");
 		}
 
+        auto StaticSkinMap = StaticSkinMapProperty->ContainerPtrToValuePtr<TMap<FName, UObject*>>(m_skinDataAsset);
 		for (auto& [skin_id, value] : json.items())
 		{
 			auto SkinId = FName(RC::to_generic_string(skin_id), FNAME_Add);
@@ -126,11 +127,6 @@ namespace Palworld {
             {
                 PropertyHelper::CopyJsonValueToContainer(reinterpret_cast<uint8_t*>(Item), Property, Value);
             }
-            else
-            {
-                PS::Log<LogLevel::Warning>(STR("Failed to modify property in {}, property {} doesn't exist in {}\n"), SkinId.ToString(), 
-                                                                                                                      KeyWide, DatabaseClass->GetName());
-            }
         }
 
 		if (Data.contains("IconTexture"))
@@ -180,11 +176,6 @@ namespace Palworld {
             if (Property)
             {
                 PropertyHelper::CopyJsonValueToContainer(reinterpret_cast<uint8_t*>(Item), Property, Value);
-            }
-            else
-            {
-                PS::Log<LogLevel::Warning>(STR("Failed to modify property in {}, property {} doesn't exist in {}\n"), SkinId.ToString(),
-                    KeyWide, SkinClass->GetName());
             }
         }
 
