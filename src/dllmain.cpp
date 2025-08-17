@@ -6,6 +6,7 @@
 #include "SDK/PalSignatures.h"
 #include "SDK/Classes/Async.h"
 #include "SDK/UnrealOffsets.h"
+#include "../version.h"
 
 using namespace RC;
 using namespace RC::Unreal;
@@ -15,8 +16,10 @@ class PalSchema : public RC::CppUserModBase
 public:
     PalSchema() : CppUserModBase()
     {
+        auto Version = std::format(STR("{}.{}.{}"), VERSION_MAJOR, VERSION_MINOR, VERSION_REVISION);
+
         ModName = STR("PalSchema");
-        ModVersion = STR("0.5.0");
+        ModVersion = Version;
         ModDescription = STR("Allows modifying of Palworld's assets dynamically.");
         ModAuthors = STR("Okaetsu");
 
