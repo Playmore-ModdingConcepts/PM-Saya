@@ -63,8 +63,11 @@ public:
     {
         if (UE4SSProgram::settings_manager.Debug.DebugConsoleVisible)
         {
+            PS::Log<LogLevel::Verbose>(STR("GUI Console is visible, enabling ImGui for PalSchema...\n"));
+
             UE4SS_ENABLE_IMGUI()
 
+            PS::Log<LogLevel::Verbose>(STR("Registering Pal Schema tab in GUI Console...\n"));
             register_tab(STR("Pal Schema"), [](CppUserModBase* instance) {
                 auto mod = dynamic_cast<PalSchema*>(instance);
                 if (!mod)
@@ -79,6 +82,8 @@ public:
                     });
                 }
             });
+
+            PS::Log<LogLevel::Verbose>(STR("Finished registering Pal Schema tab for GUI Console.\n"));
         }
     }
 
