@@ -16,6 +16,8 @@ namespace PS {
     {
         if (s_config) return;
 
+        PS::Log<LogLevel::Normal>(STR("Loading config.json...\n"));
+
         try
         {
             s_config = std::make_unique<PSConfig>();

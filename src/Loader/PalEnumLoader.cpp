@@ -14,21 +14,28 @@ namespace Palworld {
 
     void PalEnumLoader::Initialize()
     {
+        PS::Log<LogLevel::Verbose>(STR("Attempting to get UClass for UEnum...\n"));
         auto EnumClass = UECustom::UObjectGlobals::StaticFindObject<UClass*>(nullptr, nullptr, STR("/Script/CoreUObject.Enum"));
 
         if (!EnumClass)
         {
-            PS::Log<LogLevel::Error>(STR("Failed to get /Script/CoreUObject.Enum\n"));
+            PS::Log<LogLevel::Error>(STR("Unable to initialize EnumLoader, failed to get /Script/CoreUObject.Enum\n"));
             return;
         }
 
         TArray<UObject*> Results;
+
+        PS::Log<LogLevel::Verbose>(STR("UClass for UEnum found, fetching UEnums...\n"));
         UECustom::UObjectGlobals::GetObjectsOfClass(EnumClass, Results);
 
+        int AddedUEnums = 0;
         for (auto& Result : Results)
         {
             EnumNameToObjectMap.emplace(Result->GetName(), static_cast<UEnum*>(Result));
+            AddedUEnums++;
         }
+
+        PS::Log<LogLevel::Verbose>(STR("Finished mapping {} UEnums.\n"), AddedUEnums);
     }
 
     void PalEnumLoader::Load(const nlohmann::json& Data)

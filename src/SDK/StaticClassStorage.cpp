@@ -71,6 +71,8 @@ namespace Palworld {
             {
                 NumericPropertyStaticClass = StaticClass;
             }
+
+            PS::Log<LogLevel::Verbose>(STR("Found {}::StaticClass"), TypeName.ToString());
         }
     }
 }

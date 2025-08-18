@@ -43,6 +43,8 @@ namespace Palworld {
 
 		m_palLongDescTable = UObjectGlobals::StaticFindObject<UECustom::UDataTable*>(nullptr, nullptr,
 			STR("/Game/Pal/DataTable/Text/DT_PalLongDescriptionText.DT_PalLongDescriptionText"));
+
+        PS::Log<LogLevel::Verbose>(STR("Initialized MonsterModLoader\n"));
 	}
 
 	void PalMonsterModLoader::Load(const nlohmann::json& json)

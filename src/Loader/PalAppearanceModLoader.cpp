@@ -46,6 +46,8 @@ namespace Palworld {
 
 		m_equipmentTable = UObjectGlobals::StaticFindObject<UECustom::UDataTable*>(nullptr, nullptr,
 			STR("/Game/Pal/DataTable/CharacteCreation/DT_CharacterCreationMeshPresetTable_Equipments.DT_CharacterCreationMeshPresetTable_Equipments"));
+
+        PS::Log<LogLevel::Verbose>(STR("Initialized AppearanceModLoader\n"));
 	}
 
 	void PalAppearanceModLoader::Load(const nlohmann::json& Data)

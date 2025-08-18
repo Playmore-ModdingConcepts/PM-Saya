@@ -37,6 +37,7 @@ public:
         PS::Log<LogLevel::Verbose>(STR("Initializing UnrealOffsets...\n"));
         Palworld::UnrealOffsets::Initialize();
 
+        PS::Log<LogLevel::Verbose>(STR("Preparing to pre-initialize PalSchema...\n"));
         MainLoader.PreInitialize();
 
         PS::Log<RC::LogLevel::Normal>(STR("{} v{} by {} loaded.\n"), ModName, ModVersion, ModAuthors);

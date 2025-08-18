@@ -33,14 +33,25 @@ void UECustom::UDataTableStore::Store(UECustom::UDataTable* Table)
 void UECustom::UDataTableStore::Initialize()
 {
     TArray<UObject*> Results;
-    UECustom::UObjectGlobals::GetObjectsOfClass(UECustom::UDataTable::StaticClass(), Results);
 
+    auto DataTableClass = UECustom::UDataTable::StaticClass();
+    if (!DataTableClass)
+    {
+        PS::Log<LogLevel::Error>(STR("Unable to initialize UDataTableStore, failed to get /Script/Engine.DataTable\n"));
+        return;
+    }
+
+    PS::Log<LogLevel::Verbose>(STR("UClass for UDataTable found, fetching UDataTables...\n"));
+    UECustom::UObjectGlobals::GetObjectsOfClass(DataTableClass, Results);
+
+    int AddedUDataTables = 0;
     for (auto& Object : Results)
     {
         auto DT = static_cast<UECustom::UDataTable*>(Object);
         auto Name = Object->GetNamePrivate().ToString();
         UECustom::UDataTableStore::Store(RC::to_string(Name), DT);
+        AddedUDataTables++;
     }
 
-    PS::Log<LogLevel::Normal>(STR("Finished initializing UDataTableStore.\n"));
+    PS::Log<LogLevel::Verbose>(STR("Finished mapping {} UDataTables.\n"), AddedUDataTables);
 }

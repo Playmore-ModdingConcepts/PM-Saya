@@ -36,6 +36,8 @@ namespace Palworld {
 
 		m_skinTranslationTable = UECustom::UObjectGlobals::StaticFindObject<UECustom::UDataTable*>(nullptr, nullptr,
 			STR("/Game/Pal/DataTable/Text/DT_UI_Common_Text.DT_UI_Common_Text"));
+
+        PS::Log<LogLevel::Verbose>(STR("Initialized SkinModLoader\n"));
 	}
 
 	void PalSkinModLoader::Load(const nlohmann::json& json)

@@ -49,13 +49,17 @@ void Palworld::UnrealOffsets::Initialize()
     Unreal::Version::Major = 5;
     Unreal::Version::Minor = 1;
 
-    PS::Log<LogLevel::Verbose>(STR("Unreal Version set to 5.1.\n"));
+    PS::Log<LogLevel::Verbose>(STR("Unreal Version set to {}.{}.\n"), Unreal::Version::Major, Unreal::Version::Minor);
 
-    FName::ConstructorInternal.assign_address(Palworld::SignatureManager::GetSignature("FName::Constructor"));
-    FName::ToStringInternal.assign_address(Palworld::SignatureManager::GetSignature("FName::ToString_Wchar"));
+    auto FNameConstructorAddress = Palworld::SignatureManager::GetSignature("FName::Constructor");
+    FName::ConstructorInternal.assign_address(FNameConstructorAddress);
+    PS::Log<LogLevel::Verbose>(STR("FName::Constructor was assigned address of {}\n"), FNameConstructorAddress);
+
+    auto FNameToStringAddress = Palworld::SignatureManager::GetSignature("FName::ToString_Wchar");
+    FName::ToStringInternal.assign_address(FNameToStringAddress);
+    PS::Log<LogLevel::Verbose>(STR("FName::ToString was assigned address of {}\n"), FNameToStringAddress);
 
     ApplyMemberVariableLayout();
-    PS::Log<LogLevel::Verbose>(STR("MemberVariableLayout applied.\n"));
 
     UnrealInitializer::InitializeVersionedContainer();
     PS::Log<LogLevel::Verbose>(STR("Versioned Container initialized.\n"));
@@ -64,6 +68,8 @@ void Palworld::UnrealOffsets::Initialize()
 void Palworld::UnrealOffsets::InitializeGMalloc()
 {
     if (RC::Unreal::GMalloc) return;
+
+    PS::Log<LogLevel::Verbose>(STR("Initializing GMalloc...\n"));
 
     auto StartAddr = static_cast<uint8_t*>(Palworld::SignatureManager::GetSignature("FMemory::Free"));
     if (!StartAddr)
@@ -131,6 +137,8 @@ void Palworld::UnrealOffsets::InitializeGMalloc()
 
 void Palworld::UnrealOffsets::ApplyMemberVariableLayout()
 {
+    PS::Log<LogLevel::Verbose>(STR("Reading offsets from MemberVariableLayout.ini...\n"));
+
     auto MemberVariableLayoutFile = fs::path(UE4SSProgram::get_program().get_working_directory()) / "MemberVariableLayout.ini";
     if (fs::exists(MemberVariableLayoutFile))
     {
@@ -859,6 +867,16 @@ void Palworld::UnrealOffsets::ApplyMemberVariableLayout()
                 Unreal::FInterfaceProperty::MemberOffsets.emplace(STR("InterfaceClass"), static_cast<int32_t>(val));
             if (auto val = parser.get_int64(STR("FFieldPathProperty"), STR("PropertyClass"), -1); val != -1)
                 Unreal::FFieldPathProperty::MemberOffsets.emplace(STR("PropertyClass"), static_cast<int32_t>(val));
+
+            PS::Log<LogLevel::Verbose>(STR("Offsets from MemberVariableLayout.ini applied.\n"));
         }
+        else
+        {
+            PS::Log<LogLevel::Error>(STR("Failed to apply offsets from MemberVariableLayout.ini, something went wrong trying to read the file.\n"));
+        }
+    }
+    else
+    {
+        PS::Log<LogLevel::Error>(STR("Failed to apply offsets from MemberVariableLayout.ini, file doesn't exist.\n"));
     }
 }

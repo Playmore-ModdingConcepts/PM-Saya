@@ -59,6 +59,12 @@ namespace Palworld {
                 UECustom::UDataTableStore::Store(Table);
                 RawTableLoader.OnDataTableChanged(Table);
             });
+
+            PS::Log<LogLevel::Verbose>(STR("Core pre-initialized.\n"));
+        }
+        else
+        {
+            PS::Log<LogLevel::Error>(STR("Unable to initialize PalSchema core, signature for UDataTable::Serialize is outdated.\n"));
         }
 
         auto StaticItemDataTable_GetFuncPtr = Palworld::SignatureManager::GetSignature("UPalStaticItemDataTable::Get");
@@ -66,6 +72,12 @@ namespace Palworld {
         {
             StaticItemDataTable_Get_Hook = safetyhook::create_inline(reinterpret_cast<void*>(StaticItemDataTable_GetFuncPtr),
                 StaticItemDataTable_Get);
+
+            PS::Log<LogLevel::Verbose>(STR("Dummy item fix applied.\n"));
+        }
+        else
+        {
+            PS::Log<LogLevel::Error>(STR("Unable to apply dummy item fix, signature for UPalStaticItemDataTable::Get is outdated.\n"));
         }
 
         SetupAlternativePakPathReader();
@@ -200,6 +212,10 @@ namespace Palworld {
             GetPakFolders_Hook = safetyhook::create_inline(reinterpret_cast<void*>(GetPakFolders_Address),
                 GetPakFolders);
         }
+        else
+        {
+            PS::Log<LogLevel::Error>(STR("Unable to setup additional .pak read directory, signature for FPakPlatformFile::GetPakFolders is outdated.\n"));
+        }
     }
 
     void PalMainLoader::InitCore()
@@ -207,12 +223,14 @@ namespace Palworld {
         if (m_hasInit) return;
         m_hasInit = true;
 
+        PS::Log<LogLevel::Verbose>(STR("Initializing Static Class Storage...\n"));
         Palworld::StaticClassStorage::Initialize();
 
         LoadCustomEnums();
 
         std::vector<fs::path::string_type> listOfModsWithErrors;
 
+        PS::Log<LogLevel::Verbose>(STR("Loading raw tables and blueprint mods...\n"));
         IterateModsFolder([&](const fs::directory_entry& modFolder) {
             auto modName = modFolder.path().stem().native();
             try
@@ -230,6 +248,7 @@ namespace Palworld {
                 listOfModsWithErrors.push_back(modName);
             }
         });
+        PS::Log<LogLevel::Verbose>(STR("Finished loading raw tables and blueprint mods.\n"));
 
         auto errorCount = listOfModsWithErrors.size();
         m_errorCount += errorCount;
@@ -242,8 +261,10 @@ namespace Palworld {
             return;
         }
 
+        PS::Log<LogLevel::Verbose>(STR("Fetching default object for UBlueprintGeneratedClass...\n"));
         uintptr_t* BGCVTablePtr = *(uintptr_t**)BlueprintGeneratedClass->GetClassDefaultObject();
         void* PostLoadPtr = (void*)BGCVTablePtr[20];
+        PS::Log<LogLevel::Verbose>(STR("Found UBlueprintGeneratedClass::PostLoad: {}\n"), PostLoadPtr);
 
         PostLoadCallbacks.push_back([&](UClass* BPGeneratedClass) {
             BlueprintModLoader.OnPostLoadDefaultObject(BPGeneratedClass, BPGeneratedClass->GetClassDefaultObject());
@@ -259,8 +280,10 @@ namespace Palworld {
             return;
         }
 
+        PS::Log<LogLevel::Verbose>(STR("Fetching default object for UPalGameInstance...\n"));
         uintptr_t** PGIVTablePtr = *(uintptr_t***)PalGameInstanceClass->GetClassDefaultObject();
-        auto GameInstanceInitPtr = PGIVTablePtr[90];
+        void* GameInstanceInitPtr = (void*)PGIVTablePtr[90];
+        PS::Log<LogLevel::Verbose>(STR("Found UPalGameInstance::Init: {}\n"), GameInstanceInitPtr);
 
         GameInstanceInitCallbacks.push_back([&](UObject* Instance) {
             InitLoaders();
@@ -274,8 +297,10 @@ namespace Palworld {
 
     void PalMainLoader::InitLoaders()
     {
+        PS::Log<LogLevel::Verbose>(STR("Initializing UDataTable storage...\n"));
         UECustom::UDataTableStore::Initialize();
 
+        PS::Log<LogLevel::Verbose>(STR("Initializing Loaders...\n"));
         LanguageModLoader.Initialize();
         MonsterModLoader.Initialize();
         HumanModLoader.Initialize();
@@ -293,6 +318,7 @@ namespace Palworld {
 	{
         std::vector<fs::path::string_type> listOfModsWithErrors;
 
+        PS::Log<LogLevel::Verbose>(STR("Loading mods...\n"));
         IterateModsFolder([&](const fs::directory_entry& modFolder) {
             auto& modsPath = modFolder.path();
             auto modName = modsPath.stem().native();
@@ -330,12 +356,15 @@ namespace Palworld {
 
         auto errorCount = listOfModsWithErrors.size();
         m_errorCount += errorCount;
+
+        PS::Log<LogLevel::Verbose>(STR("Finished loading mods.\n"));
 	}
 
 	void PalMainLoader::LoadLanguageMods(const std::filesystem::path& path)
 	{
 		const auto& currentLanguage = LanguageModLoader.GetCurrentLanguage();
 
+        PS::Log<LogLevel::Verbose>(STR("Loading language mods...\n"));
         auto globalLanguageFolder = path / "global";
         if (fs::exists(globalLanguageFolder))
         {
@@ -351,6 +380,8 @@ namespace Palworld {
                 LanguageModLoader.Load(data);
             });
 		}
+
+        PS::Log<LogLevel::Verbose>(STR("Finished loading language mods.\n"));
 	}
 
 	void PalMainLoader::LoadPalMods(const std::filesystem::path& path)
@@ -413,6 +444,7 @@ namespace Palworld {
     {
         EnumLoader.Initialize();
 
+        PS::Log<LogLevel::Verbose>(STR("Loading custom enums...\n"));
         IterateModsFolder([&](const fs::directory_entry& modFolder) {
             auto& modsPath = modFolder.path();
             auto modName = modsPath.stem().native();
@@ -428,6 +460,8 @@ namespace Palworld {
                 }
             });
         });
+
+        PS::Log<LogLevel::Verbose>(STR("Finished loading custom enums.\n"));
     }
 
     void PalMainLoader::IterateModsFolder(const std::function<void(const std::filesystem::directory_entry&)>& callback)
@@ -496,14 +530,17 @@ namespace Palworld {
         }
     }
 
+    // This entire function block will get called twice, it's fine.
     void PalMainLoader::GetPakFolders(const TCHAR* CmdLine, TArray<FString>* OutPakFolders)
     {
+        PS::Log<LogLevel::Verbose>(STR("Calling original FPakPlatformFile::GetPakFolders...\n"));
         GetPakFolders_Hook.call(CmdLine, OutPakFolders);
 
         try
         {
             // Calling this here, because we want GMalloc to be available ASAP inside this hook so we can make our changes to the TArray.
             // Once UE4SS starts running things on Game Thread, this could be moved to PreInitialize.
+            // Just for clarity, there is a check inside InitializeGMalloc to prevent it from running twice since GetPakFolders runs twice.
             UnrealOffsets::InitializeGMalloc();
         }
         catch (const std::exception& e)
@@ -512,13 +549,18 @@ namespace Palworld {
             PS::Log<LogLevel::Error>(STR("PalSchema won't be able to load paks from the PalSchema/mods folder.\n"));
             return;
         }
-
+        
+        PS::Log<LogLevel::Verbose>(STR("Preparing to add extra .pak read directory...\n"));
         auto ModsFolderPath = fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PalSchema" / "mods";
         auto AbsolutePath = ModsFolderPath.native();
         auto AbsolutePathWithSuffix = std::format(STR("{}/"), RC::to_generic_string(AbsolutePath));
 
+        PS::Log<LogLevel::Verbose>(STR("Setting extra .pak read directory to {}\n"), AbsolutePathWithSuffix);
+
         // If GMalloc isn't properly initialized, accessing the TArray will crash.
         OutPakFolders->Add(FString(AbsolutePathWithSuffix.c_str()));
+
+        PS::Log<LogLevel::Verbose>(STR("Added extra .pak read directory at {}\n"), AbsolutePathWithSuffix);
     }
 
     void PalMainLoader::OnDataTableSerialized(UECustom::UDataTable* This, RC::Unreal::FArchive* Archive)

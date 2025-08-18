@@ -37,6 +37,8 @@ namespace Palworld {
         m_descriptionTranslationTable = UObjectGlobals::StaticFindObject<UECustom::UDataTable*>(nullptr, nullptr,
             STR("/Game/Pal/DataTable/Text/DT_ItemDescriptionText.DT_ItemDescriptionText"));
 
+        PS::Log<LogLevel::Verbose>(STR("Initialized ItemModLoader\n"));
+
         InitializeDummyTranslations();
 	}
 
@@ -434,5 +436,7 @@ namespace Palworld {
         FPalLocalizedTextData NewDescRow{};
         NewDescRow.TextData = FText(STR("A memory of a scrapped item from the past."));
         m_descriptionTranslationTable->AddRow(FName(STR("ITEM_DESC_StaticDummy"), FNAME_Add), NewDescRow);
+
+        PS::Log<LogLevel::Verbose>(STR("Initialized Dummy Translations for ItemModLoader\n"));
     }
 }

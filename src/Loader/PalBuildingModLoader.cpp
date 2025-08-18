@@ -49,6 +49,8 @@ namespace Palworld {
 
         m_technologyDescTable = UObjectGlobals::StaticFindObject<UECustom::UDataTable*>(nullptr, nullptr,
             STR("/Game/Pal/DataTable/Text/DT_TechnologyDescText.DT_TechnologyDescText"));
+
+        PS::Log<LogLevel::Verbose>(STR("Initialized BuildingModLoader\n"));
 	}
 
 	void PalBuildingModLoader::Load(const nlohmann::json& Data)
