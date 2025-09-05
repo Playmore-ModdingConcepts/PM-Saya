@@ -8,6 +8,8 @@
 #include "Utility/Logging.h"
 #include "Helpers/String.hpp"
 #include "Loader/PalRawTableLoader.h"
+#include <SDK/Classes/Custom/UDataTableStore.h>
+#include "Unreal/Property/FStrProperty.hpp"
 
 using namespace RC;
 using namespace RC::Unreal;
@@ -19,21 +21,23 @@ namespace Palworld {
 
 	PalRawTableLoader::~PalRawTableLoader() {}
 
-	void PalRawTableLoader::Initialize() {}
+	void PalRawTableLoader::Initialize() {
+        std::vector<UObject*> Results;
+        UObjectGlobals::FindAllOf(STR("DataTable"), Results);
+
+        for (auto& Result : Results)
+        {
+            auto DT = static_cast<UECustom::UDataTable*>(Result);
+            UECustom::UDataTableStore::Store(DT);
+        }
+    }
 
     void PalRawTableLoader::Apply(UECustom::UDataTable* Table)
     {
         if (!Table) return;
 
         auto Name = Table->GetNamePrivate().ToString();
-        auto RowStruct = Table->GetRowStruct().Get();
-
-        RC::StringType Suffix = STR("_Common");
-        size_t Pos = Name.rfind(Suffix);
-
-        if (Pos != RC::StringType::npos && Pos + Suffix.size() == Name.size()) {
-            Name.erase(Pos);
-        }
+        auto RowStruct = Table->GetRowStruct();
 
         auto It = m_tableDataMap.find(Name);
         if (It != m_tableDataMap.end())
@@ -71,7 +75,16 @@ namespace Palworld {
             }
 
             auto RowKeyName = FName(RC::to_generic_string(RowKey), FNAME_Add);
-            auto Row = Table->FindRowUnchecked(RowKeyName);
+            
+            uint8* Row = nullptr;
+            for (auto& [K, V] : Table->GetRowMap())
+            {
+                if (K == RowKeyName)
+                {
+                    Row = V;
+                }
+            }
+
             if (!Row)
             {
                 AddRow(Table, RowKeyName, RowData, OutResult);
@@ -91,9 +104,21 @@ namespace Palworld {
 
 	void PalRawTableLoader::Load(const nlohmann::json& Data)
 	{
+        PS::Log<LogLevel::Verbose>(STR("Loading...\n"));
         for (auto& [Key, Value] : Data.items())
         {
-            AddToTableDataMap(Key, Value);
+            PS::Log<LogLevel::Verbose>(STR("Key: {}\n"), RC::to_generic_string(Key));
+            auto Table = UECustom::UDataTableStore::GetTableByName(Key);
+            if (Table)
+            {
+                auto Name = Table->GetNamePrivate().ToString();
+                LoadResult Result;
+                Apply(Value, Table, Result);
+
+                PS::Log<LogLevel::Normal>(STR("{}: {} rows updated, {} rows added, {} rows deleted, {} error{}.\n"),
+                    Name, Result.SuccessfulModifications, Result.SuccessfulAdditions,
+                    Result.SuccessfulDeletions, Result.ErrorCount, Result.ErrorCount > 1 || Result.ErrorCount == 0 ? STR("s") : STR(""));
+            }
         }
 	}
 
@@ -121,7 +146,7 @@ namespace Palworld {
     {
         try
         {
-            auto RowStruct = Table->GetRowStruct().Get();
+            auto RowStruct = Table->GetRowStruct();
             for (auto& [Key, Row] : Table->GetRowMap())
             {
                 for (auto Property : RowStruct->ForEachPropertyInChain())
@@ -145,7 +170,7 @@ namespace Palworld {
 
     void PalRawTableLoader::AddRow(UECustom::UDataTable* Table, const FName& RowName, const nlohmann::json& Data, LoadResult& OutResult)
     {
-        auto RowStruct = Table->GetRowStruct().Get();
+        auto RowStruct = Table->GetRowStruct();
         auto NewRowData = FMemory::Malloc(RowStruct->GetStructureSize());
         RowStruct->InitializeStruct(NewRowData);
 
@@ -177,7 +202,7 @@ namespace Palworld {
     {
         try
         {
-            auto RowStruct = Table->GetRowStruct().Get();
+            auto RowStruct = Table->GetRowStruct();
             if (!Data.is_object())
             {
                 throw std::runtime_error(std::format("Value for {} must be an object", RC::to_string(RowName.ToString())));

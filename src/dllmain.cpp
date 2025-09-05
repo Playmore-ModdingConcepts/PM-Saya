@@ -13,6 +13,8 @@
 #include "SDK/Classes/Custom/UBlueprintGeneratedClass.h"
 #include "SDK/Classes/Custom/UInheritableComponentHandler.h"
 #include "SDK/UnrealOffsets.h"
+#include "SDK/Classes/UDataTable.h"
+#include "SDK/StaticClassStorage.h"
 
 using namespace RC;
 using namespace RC::Unreal;
@@ -22,18 +24,15 @@ class PalSchema : public RC::CppUserModBase
 public:
     PalSchema() : CppUserModBase()
     {
-        ModName = STR("PalSchema");
+        ModName = STR("PM-Saya");
         ModVersion = STR("0.4.2");
-        ModDescription = STR("Allows modifying of Palworld's assets dynamically.");
+        ModDescription = STR("");
         ModAuthors = STR("Okaetsu");
 
         PS::PSConfig::Load();
 
         PS::Log<LogLevel::Verbose>(STR("Initializing SignatureManager...\n"));
         Palworld::SignatureManager::Initialize();
-
-        PS::Log<LogLevel::Verbose>(STR("Initializing UnrealOffsets...\n"));
-        Palworld::UnrealOffsets::Initialize();
 
         MainLoader.PreInitialize();
 
@@ -46,7 +45,7 @@ public:
 
     auto reload_mods() -> void
     {
-        MainLoader.ReloadMods();
+        // MainLoader.ReloadMods();
     }
 
     auto on_ui_init() -> void override
@@ -55,7 +54,7 @@ public:
         {
             UE4SS_ENABLE_IMGUI()
 
-            register_tab(STR("Pal Schema"), [](CppUserModBase* instance) {
+            register_tab(ModName, [](CppUserModBase* instance) {
                 auto mod = dynamic_cast<PalSchema*>(instance);
                 if (!mod)
                 {
@@ -64,9 +63,7 @@ public:
 
                 if (ImGui::Button("Reload Schema Mods"))
                 {
-                    UECustom::AsyncTask(UECustom::ENamedThreads::GameThread, [mod]() {
-                        mod->reload_mods();
-                    });
+                    mod->reload_mods();
                 }
             });
         }
@@ -82,10 +79,15 @@ public:
 
     auto on_unreal_init() -> void override
     {
-        MainLoader.Initialize();
+        Hook::RegisterProcessEventPostCallback([&](UObject* Context, UFunction* Function, void* Parms) {
+            if (m_hooked) return;
+            m_hooked = true;
+            MainLoader.Initialize();
+        });
     }
 private:
     Palworld::PalMainLoader MainLoader;
+    bool m_hooked = false;
 };
 
 

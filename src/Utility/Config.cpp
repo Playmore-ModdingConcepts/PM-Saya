@@ -20,7 +20,7 @@ namespace PS {
         {
             s_config = std::make_unique<PSConfig>();
 
-            auto cwd = fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PalSchema" / "config";
+            auto cwd = fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PM-Saya" / "config";
 
             if (!fs::exists(cwd))
             {
@@ -74,11 +74,11 @@ namespace PS {
                 out_file.close();
             }
 
-            PS::Log<RC::LogLevel::Normal>(STR("PalSchema config loaded.\n"));
+            PS::Log<RC::LogLevel::Normal>(STR("PM-Saya config loaded.\n"));
         }
         catch (const std::exception& e)
         {
-            PS::Log<RC::LogLevel::Error>(STR("Failed to load PalSchema Config - {}\n"), RC::to_generic_string(e.what()));
+            PS::Log<RC::LogLevel::Error>(STR("Failed to load PM-Saya Config - {}\n"), RC::to_generic_string(e.what()));
         }
     }
 
@@ -89,7 +89,7 @@ namespace PS {
             return s_config->m_languageOverride;
         }
 
-        PS::Log<RC::LogLevel::Error>(STR("PalSchema Config must be initialized first before accessing GetLanguageOverride!"));
+        PS::Log<RC::LogLevel::Error>(STR("PM-Saya Config must be initialized first before accessing GetLanguageOverride!"));
 
         return "";
     }
@@ -101,7 +101,7 @@ namespace PS {
             return s_config->m_enableAutoReload;
         }
 
-        PS::Log<RC::LogLevel::Error>(STR("PalSchema Config must be initialized first before accessing IsAutoReloadEnabled!"));
+        PS::Log<RC::LogLevel::Error>(STR("PM-Saya Config must be initialized first before accessing IsAutoReloadEnabled!"));
 
         return "";
     }
@@ -113,7 +113,7 @@ namespace PS {
             return s_config->m_enableDebugLogging;
         }
 
-        PS::Log<RC::LogLevel::Error>(STR("PalSchema Config must be initialized first before accessing IsDebugLoggingEnabled!"));
+        PS::Log<RC::LogLevel::Error>(STR("PM-Saya Config must be initialized first before accessing IsDebugLoggingEnabled!"));
 
         return false;
     }
