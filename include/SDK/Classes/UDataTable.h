@@ -9,14 +9,12 @@
 #include <DynamicOutput/DynamicOutput.hpp>
 #include <Unreal/TypeChecker.hpp>
 
-namespace UECustom
-{
-    // Base class for all table row structs to inherit from
-    struct FTableRowBase
-    {
-        FTableRowBase() {}
-        virtual ~FTableRowBase() {}
-    };
+namespace RC::Unreal {
+    class UScriptStruct;
+}
+
+namespace UECustom {
+    struct FTableRowBase;
 
     class UDataTable : public RC::Unreal::UObject
     {

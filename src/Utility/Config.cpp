@@ -20,7 +20,7 @@ namespace PS {
         {
             s_config = std::make_unique<PSConfig>();
 
-            auto cwd = fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PM-Saya" / "config";
+            auto cwd = fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PM-Saya" / "SAYA" / "config";
 
             if (!fs::exists(cwd))
             {

@@ -25,9 +25,9 @@ public:
     PalSchema() : CppUserModBase()
     {
         ModName = STR("PM-Saya");
-        ModVersion = STR("0.4.2");
+        ModVersion = STR("0.4.2r");
         ModDescription = STR("");
-        ModAuthors = STR("Okaetsu");
+        ModAuthors = STR("Okaetsu and Rythus");
 
         PS::PSConfig::Load();
 
@@ -61,7 +61,7 @@ public:
                     return;
                 }
 
-                if (ImGui::Button("Reload Schema Mods"))
+                if (ImGui::Button("Reload SAYA"))
                 {
                     mod->reload_mods();
                 }

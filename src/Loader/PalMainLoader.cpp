@@ -88,13 +88,13 @@ namespace Palworld {
         PS::Log<LogLevel::Normal>(STR("Auto-reload is enabled.\n"));
 
         m_fileWatch = std::make_unique<filewatch::FileWatch<std::wstring>>(
-            fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PM-Saya" / "mods",
+            fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PM-Saya" / "SAYA" / "mods",
             std::wregex(L".*\\.(json|jsonc)"),
             [&](const std::wstring& path, const filewatch::Event change_type) {
                 if (change_type == filewatch::Event::modified)
                 {
                     auto ue4ssPath = fs::path(UE4SSProgram::get_program().get_working_directory());
-                    auto modFilePath = ue4ssPath / "Mods" / "PM-Saya" / "mods" / path;
+                    auto modFilePath = ue4ssPath / "Mods" / "PM-Saya" / "SAYA" / "mods" / path;
 
                     std::ifstream f(modFilePath);
                     if (f.peek() == std::ifstream::traits_type::eof()) {
@@ -215,7 +215,7 @@ namespace Palworld {
 
     void PalMainLoader::IterateModsFolder(const std::function<void(const std::filesystem::directory_entry&)>& callback)
     {
-        auto cwd = fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PM-Saya" / "mods";
+        auto cwd = fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PM-Saya" / "SAYA" / "mods";
         if (fs::exists(cwd))
         {
             for (const auto& entry : fs::directory_iterator(cwd)) {
@@ -284,7 +284,7 @@ namespace Palworld {
             PS::Log<LogLevel::Error>(STR("Failed to initialize GMalloc early: {}\n"), RC::to_generic_string(e.what()));
         }
 
-        auto ModsFolderPath = fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PM-Saya" / "mods";
+        auto ModsFolderPath = fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PM-Saya" / "SAYA" / "mods";
         auto AbsolutePath = ModsFolderPath.native();
         auto AbsolutePathWithSuffix = std::format(STR("{}/"), RC::to_generic_string(AbsolutePath));
 
