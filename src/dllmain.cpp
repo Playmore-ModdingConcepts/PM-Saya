@@ -24,10 +24,10 @@ class PalSchema : public RC::CppUserModBase
 public:
     PalSchema() : CppUserModBase()
     {
-        ModName = STR("PM-Saya");
-        ModVersion = STR("0.4.2r");
-        ModDescription = STR("");
-        ModAuthors = STR("Okaetsu and Rythus");
+        ModName = STR("");
+        ModVersion = STR("0.4.2");
+        ModDescription = STR("Playmore SAYA Module -  based on PalSchema");
+        ModAuthors = STR("Okaetsu, GreenTrafficLight, Rythus");
 
         PS::PSConfig::Load();
 
@@ -36,7 +36,7 @@ public:
 
         MainLoader.PreInitialize();
 
-        PS::Log<RC::LogLevel::Normal>(STR("{} v{} by {} loaded.\n"), ModName, ModVersion, ModAuthors);
+        PS::Log<RC::LogLevel::Normal>(STR("{} {} by {} loaded.\n"), ModDescription, ModVersion, ModAuthors);
     }
 
     ~PalSchema() override
@@ -50,23 +50,23 @@ public:
 
     auto on_ui_init() -> void override
     {
-        if (UE4SSProgram::settings_manager.Debug.DebugConsoleVisible)
-        {
-            UE4SS_ENABLE_IMGUI()
+        // if (UE4SSProgram::settings_manager.Debug.DebugConsoleVisible)
+        // {
+            // UE4SS_ENABLE_IMGUI()
 
-            register_tab(ModName, [](CppUserModBase* instance) {
-                auto mod = dynamic_cast<PalSchema*>(instance);
-                if (!mod)
-                {
-                    return;
-                }
+            // register_tab(ModName, [](CppUserModBase* instance) {
+                // auto mod = dynamic_cast<PalSchema*>(instance);
+                // if (!mod)
+                // {
+                    //return;
+                // }
 
-                if (ImGui::Button("Reload SAYA"))
-                {
-                    mod->reload_mods();
-                }
-            });
-        }
+                // if (ImGui::Button("Reload SAYA"))
+                // {
+                    //mod->reload_mods();
+                // }
+            // });
+        // }
     }
 
     auto on_update() -> void override

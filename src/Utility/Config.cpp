@@ -32,8 +32,8 @@ namespace PS {
 
             nlohmann::ordered_json data = {};
             if (f.fail()) {
-                data["languageOverride"] = "";
-                data["enableAutoReload"] = false;
+                // data["languageOverride"] = "";
+                // data["enableAutoReload"] = false;
                 data["enableDebugLogging"] = false;
                 std::ofstream out_file(cwd / "config.json");
                 out_file << data.dump(4);
@@ -44,17 +44,17 @@ namespace PS {
                 data = nlohmann::ordered_json::parse(f);
             }
 
-            if (!GetString(data, "languageOverride", "", s_config->m_languageOverride))
-            {
-                data["languageOverride"] = "";
-                ShouldResave = true;
-            }
+            // if (!GetString(data, "languageOverride", "", s_config->m_languageOverride))
+            // {
+                // data["languageOverride"] = "";
+                // ShouldResave = true;
+            // }
 
-            if (!GetBool(data, "enableAutoReload", false, s_config->m_enableAutoReload))
-            {
-                data["enableAutoReload"] = false;
-                ShouldResave = true;
-            }
+            // if (!GetBool(data, "enableAutoReload", false, s_config->m_enableAutoReload))
+            // {
+                // data["enableAutoReload"] = false;
+                // ShouldResave = true;
+            // }
 
             if (!GetBool(data, "enableDebugLogging", false, s_config->m_enableDebugLogging))
             {
@@ -74,11 +74,11 @@ namespace PS {
                 out_file.close();
             }
 
-            PS::Log<RC::LogLevel::Normal>(STR("PM-Saya config loaded.\n"));
+            PS::Log<RC::LogLevel::Normal>(STR("Config loaded.\n"));
         }
         catch (const std::exception& e)
         {
-            PS::Log<RC::LogLevel::Error>(STR("Failed to load PM-Saya Config - {}\n"), RC::to_generic_string(e.what()));
+            PS::Log<RC::LogLevel::Error>(STR("Failed to load Config - {}\n"), RC::to_generic_string(e.what()));
         }
     }
 
@@ -89,7 +89,7 @@ namespace PS {
             return s_config->m_languageOverride;
         }
 
-        PS::Log<RC::LogLevel::Error>(STR("PM-Saya Config must be initialized first before accessing GetLanguageOverride!"));
+        PS::Log<RC::LogLevel::Error>(STR("Config must be initialized first before accessing GetLanguageOverride!"));
 
         return "";
     }
@@ -101,7 +101,7 @@ namespace PS {
             return s_config->m_enableAutoReload;
         }
 
-        PS::Log<RC::LogLevel::Error>(STR("PM-Saya Config must be initialized first before accessing IsAutoReloadEnabled!"));
+        PS::Log<RC::LogLevel::Error>(STR("Config must be initialized first before accessing IsAutoReloadEnabled!"));
 
         return "";
     }
@@ -113,7 +113,7 @@ namespace PS {
             return s_config->m_enableDebugLogging;
         }
 
-        PS::Log<RC::LogLevel::Error>(STR("PM-Saya Config must be initialized first before accessing IsDebugLoggingEnabled!"));
+        PS::Log<RC::LogLevel::Error>(STR("Config must be initialized first before accessing IsDebugLoggingEnabled!"));
 
         return false;
     }

@@ -31,7 +31,7 @@ namespace Palworld {
                     [=](const SignatureContainer& self) {
                         if (!self.get_did_succeed())
                         {
-                            PS::Log<RC::LogLevel::Error>(STR("Failed to find signature for {}.\n"), RC::to_generic_string(ClassAndName));
+                            // PS::Log<RC::LogLevel::Error>(STR("Failed to find signature for {}.\n"), RC::to_generic_string(ClassAndName));
                         }
                     }
                 };
@@ -56,7 +56,7 @@ namespace Palworld {
                     [=](const SignatureContainer& self) {
                         if (!self.get_did_succeed())
                         {
-                            PS::Log<RC::LogLevel::Error>(STR("Failed to find signature for {}.\n"), RC::to_generic_string(ClassAndName));
+                            // PS::Log<RC::LogLevel::Error>(STR("Failed to find signature for {}.\n"), RC::to_generic_string(ClassAndName));
                         }
                     }
                 };

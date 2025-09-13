@@ -1,5 +1,6 @@
 #include "Loader/PalEnumLoader.h"
 #include "Unreal/UEnum.hpp"
+#include "Unreal/UObjectGlobals.hpp"
 #include "Helpers/String.hpp"
 #include "Utility/Logging.h"
 #include "SDK/Classes/Custom/UObjectGlobals.h"
@@ -14,9 +15,8 @@ namespace Palworld {
 
     void PalEnumLoader::Initialize()
     {
-        auto EnumClass = UECustom::UObjectGlobals::StaticFindObject<UClass*>(nullptr, nullptr, STR("/Script/CoreUObject.Enum"));
-        TArray<UObject*> Results;
-        UECustom::UObjectGlobals::GetObjectsOfClass(EnumClass, Results);
+        std::vector<UObject*> Results;
+        UObjectGlobals::FindAllOf(STR("Enum"), Results);
 
         for (auto& Result : Results)
         {
