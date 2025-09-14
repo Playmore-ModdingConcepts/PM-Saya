@@ -24,7 +24,7 @@ class PalSchema : public RC::CppUserModBase
 public:
     PalSchema() : CppUserModBase()
     {
-        ModName = STR("");
+        ModName = STR("SAYA");
         ModVersion = STR("0.4.2");
         ModDescription = STR("Playmore SAYA Module -  based on PalSchema");
         ModAuthors = STR("Okaetsu, GreenTrafficLight, Rythus");
@@ -45,28 +45,28 @@ public:
 
     auto reload_mods() -> void
     {
-        // MainLoader.ReloadMods();
+        MainLoader.ReloadMods();
     }
 
     auto on_ui_init() -> void override
     {
-        // if (UE4SSProgram::settings_manager.Debug.DebugConsoleVisible)
-        // {
-            // UE4SS_ENABLE_IMGUI()
+        if (UE4SSProgram::settings_manager.Debug.DebugConsoleVisible)
+        {
+            UE4SS_ENABLE_IMGUI()
 
-            // register_tab(ModName, [](CppUserModBase* instance) {
-                // auto mod = dynamic_cast<PalSchema*>(instance);
-                // if (!mod)
-                // {
-                    //return;
-                // }
+            register_tab(ModName, [](CppUserModBase* instance) {
+                auto mod = dynamic_cast<PalSchema*>(instance);
+                if (!mod)
+                {
+                    return;
+                }
 
-                // if (ImGui::Button("Reload SAYA"))
-                // {
-                    //mod->reload_mods();
-                // }
-            // });
-        // }
+                if (ImGui::Button("Reload SAYA Module"))
+                {
+                    mod->reload_mods();
+                }
+            });
+        }
     }
 
     auto on_update() -> void override

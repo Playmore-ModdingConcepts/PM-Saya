@@ -73,6 +73,12 @@ namespace Palworld {
 
                 auto blueprintFolder = modFolder.path() / "blueprints";
                 LoadBlueprintMods(blueprintFolder);
+
+                auto rawFolder = modFolder.path() / "raw";
+                LoadRawTables(rawFolder);
+
+                auto translationsFolder = modsPath / "translations";
+                LoadLanguageMods(translationsFolder);
             }
             catch (const std::exception& e)
             {
@@ -121,6 +127,14 @@ namespace Palworld {
                                     {
                                         RawTableLoader.Reload(data);
                                     }
+                                    else if (folderType == "enums")
+                                    {
+                                        EnumLoader.Load(data);
+                                    }
+                                    else if (folderType == "translations")
+                                    {
+                                        LanguageModLoader.Load(data);
+                                    }
                                 });
 
                                 PS::Log<LogLevel::Normal>(STR("Reloaded mod {}\n"), modName);
@@ -160,6 +174,9 @@ namespace Palworld {
 
                 auto blueprintFolder = modFolder.path() / "blueprints";
                 LoadBlueprintMods(blueprintFolder);
+
+                auto translationsFolder = modsPath / "translations";
+                LoadLanguageMods(translationsFolder);
             }
             catch (const std::exception&)
             {
@@ -170,6 +187,27 @@ namespace Palworld {
         auto errorCount = listOfModsWithErrors.size();
         m_errorCount += errorCount;
 	}
+
+    void PalMainLoader::LoadLanguageMods(const std::filesystem::path& path)
+    {
+        const auto& currentLanguage = LanguageModLoader.GetCurrentLanguage();
+
+        auto globalLanguageFolder = path / "global";
+        if (fs::exists(globalLanguageFolder))
+        {
+            ParseJsonFilesInPath(globalLanguageFolder, [&](nlohmann::json data) {
+                LanguageModLoader.Load(data);
+            });
+        }
+
+        auto translationLanguageFolder = path / currentLanguage;
+        if (fs::exists(translationLanguageFolder))
+        {
+            ParseJsonFilesInPath(translationLanguageFolder, [&](nlohmann::json data) {
+                LanguageModLoader.Load(data);
+            });
+        }
+    }
 
     void PalMainLoader::LoadRawTables(const std::filesystem::path& path)
     {

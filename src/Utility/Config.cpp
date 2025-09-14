@@ -33,7 +33,7 @@ namespace PS {
             nlohmann::ordered_json data = {};
             if (f.fail()) {
                 // data["languageOverride"] = "";
-                // data["enableAutoReload"] = false;
+                data["enableAutoReload"] = false;
                 data["enableDebugLogging"] = false;
                 std::ofstream out_file(cwd / "config.json");
                 out_file << data.dump(4);
@@ -50,11 +50,11 @@ namespace PS {
                 // ShouldResave = true;
             // }
 
-            // if (!GetBool(data, "enableAutoReload", false, s_config->m_enableAutoReload))
-            // {
-                // data["enableAutoReload"] = false;
-                // ShouldResave = true;
-            // }
+            if (!GetBool(data, "enableAutoReload", false, s_config->m_enableAutoReload))
+            {
+                data["enableAutoReload"] = false;
+                ShouldResave = true;
+            }
 
             if (!GetBool(data, "enableDebugLogging", false, s_config->m_enableDebugLogging))
             {

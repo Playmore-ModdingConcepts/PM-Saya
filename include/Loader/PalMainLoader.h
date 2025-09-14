@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <functional>
+#include "Loader/PalLanguageModLoader.h"
 #include "Loader/PalRawTableLoader.h"
 #include "Loader/PalBlueprintModLoader.h"
 #include "Loader/PalEnumLoader.h"
@@ -25,6 +26,7 @@ namespace Palworld {
         // Should be called in Game Thread
         void ReloadMods();
 	private:
+        PalLanguageModLoader LanguageModLoader;
 		PalRawTableLoader RawTableLoader;
 		PalBlueprintModLoader BlueprintModLoader;
         PalEnumLoader EnumLoader;
@@ -35,12 +37,14 @@ namespace Palworld {
 
         void SetupAutoReload();
 
-        // Makes PM-Saya read paks from the 'PM-Saya/mods' folder. Although the paks can be anywhere, prefer for them to be put inside 'YourModName/paks'.
+        // Makes SAYA read paks from the 'PM-Saya/SAYA/mods' folder. Although the paks can be anywhere, prefer for them to be put inside 'YourModName/paks'.
         // This is intended for custom assets like models or textures that are part of a schema mod which makes it easier for modders to package their mod.
         // Requires a signature for FPakPlatformFile::GetPakFolders, otherwise this feature will not be available.
         void SetupAlternativePakPathReader();
 
 		void Load();
+
+        void LoadLanguageMods(const std::filesystem::path& path);
 
 		void LoadRawTables(const std::filesystem::path& path);
 
