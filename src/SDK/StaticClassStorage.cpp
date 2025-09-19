@@ -1,6 +1,9 @@
 #include "SDK/StaticClassStorage.h"
-#include "SDK/Helper/PropertyHelper.h"
+#include "SDK/Classes/Custom/UObjectGlobals.h"
 #include "Unreal/UClass.hpp"
+#include "Helpers/Casting.hpp"
+#include "Utility/Logging.h"
+#include "SDK/Helper/PropertyHelper.h"
 
 using namespace RC;
 using namespace RC::Unreal;
@@ -71,8 +74,6 @@ namespace Palworld {
             {
                 NumericPropertyStaticClass = StaticClass;
             }
-
-            PS::Log<LogLevel::Verbose>(STR("Found {}::StaticClass"), TypeName.ToString());
         }
     }
 }

@@ -16,13 +16,11 @@ namespace PS {
     {
         if (s_config) return;
 
-        PS::Log<LogLevel::Normal>(STR("Loading config.json...\n"));
-
         try
         {
             s_config = std::make_unique<PSConfig>();
 
-            auto cwd = fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PalSchema" / "config";
+            auto cwd = fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PlaymoreCXX" / "SAYA" / "config";
 
             if (!fs::exists(cwd))
             {
@@ -34,7 +32,7 @@ namespace PS {
 
             nlohmann::ordered_json data = {};
             if (f.fail()) {
-                data["languageOverride"] = "";
+                // data["languageOverride"] = "";
                 data["enableAutoReload"] = false;
                 data["enableDebugLogging"] = false;
                 std::ofstream out_file(cwd / "config.json");
@@ -46,11 +44,11 @@ namespace PS {
                 data = nlohmann::ordered_json::parse(f);
             }
 
-            if (!GetString(data, "languageOverride", "", s_config->m_languageOverride))
-            {
-                data["languageOverride"] = "";
-                ShouldResave = true;
-            }
+            // if (!GetString(data, "languageOverride", "", s_config->m_languageOverride))
+            // {
+                // data["languageOverride"] = "";
+                // ShouldResave = true;
+            // }
 
             if (!GetBool(data, "enableAutoReload", false, s_config->m_enableAutoReload))
             {
@@ -76,11 +74,11 @@ namespace PS {
                 out_file.close();
             }
 
-            PS::Log<RC::LogLevel::Normal>(STR("PalSchema config loaded.\n"));
+            PS::Log<RC::LogLevel::Normal>(STR("Config loaded.\n"));
         }
         catch (const std::exception& e)
         {
-            PS::Log<RC::LogLevel::Error>(STR("Failed to load PalSchema Config - {}\n"), RC::to_generic_string(e.what()));
+            PS::Log<RC::LogLevel::Error>(STR("Failed to load Config - {}\n"), RC::to_generic_string(e.what()));
         }
     }
 
@@ -91,7 +89,7 @@ namespace PS {
             return s_config->m_languageOverride;
         }
 
-        PS::Log<RC::LogLevel::Error>(STR("PalSchema Config must be initialized first before accessing GetLanguageOverride!"));
+        PS::Log<RC::LogLevel::Error>(STR("Config must be initialized first before accessing GetLanguageOverride!"));
 
         return "";
     }
@@ -103,7 +101,7 @@ namespace PS {
             return s_config->m_enableAutoReload;
         }
 
-        PS::Log<RC::LogLevel::Error>(STR("PalSchema Config must be initialized first before accessing IsAutoReloadEnabled!"));
+        PS::Log<RC::LogLevel::Error>(STR("Config must be initialized first before accessing IsAutoReloadEnabled!"));
 
         return "";
     }
@@ -115,7 +113,7 @@ namespace PS {
             return s_config->m_enableDebugLogging;
         }
 
-        PS::Log<RC::LogLevel::Error>(STR("PalSchema Config must be initialized first before accessing IsDebugLoggingEnabled!"));
+        PS::Log<RC::LogLevel::Error>(STR("Config must be initialized first before accessing IsDebugLoggingEnabled!"));
 
         return false;
     }

@@ -1,150 +1,156 @@
-#include "Helpers/String.hpp"
-#include "Helpers/Casting.hpp"
-#include "Unreal/FProperty.hpp"
-#include "Unreal/UFunction.hpp"
-#include "Unreal/UScriptStruct.hpp"
-#include "Unreal/BPMacros.hpp"
-#include "SDK/Structs/FTableRowBase.h"
-#include "SDK/Classes/UDataTable.h"
-#include "SDK/Classes/Custom/UObjectGlobals.h"
+#include <SDK/Classes/UDataTable.h>
+#include <Unreal/UClass.hpp>
+#include <Unreal/FMemory.hpp>
+#include <Unreal/UnrealVersion.hpp>
+#include <Unreal/VersionedContainer/Container.hpp>
+#include <Helpers/Casting.hpp>
 
 using namespace RC;
 using namespace RC::Unreal;
 
-namespace UECustom {
-	UScriptStruct& UDataTable::GetEmptyUsingStruct() const
-	{
-		UScriptStruct* EmptyUsingStruct = this->GetRowStruct().Get();
+namespace UECustom
+{
+        RC::Unreal::TMap<RC::Unreal::FName, unsigned char*>& UDataTable::GetRowMap()
+        {
+            return *Helper::Casting::ptr_cast<TMap<FName, unsigned char*>*>(this, 0x30);
+        }
+        const RC::Unreal::TMap<RC::Unreal::FName, unsigned char*>& UDataTable::GetRowMap() const
+        {
+            return *Helper::Casting::ptr_cast<const RC::Unreal::TMap<RC::Unreal::FName, unsigned char*>*>(this, 0x30);
+        }
 
-		// ::StaticStruct() appears to be created as part of codegen from Unreal USTRUCT/GENERATED_BODY... 
-		// Not sure if we have a good way to replicate this functionality. 
+        UScriptStruct* UDataTable::GetRowStruct()
+        {
+            return *Helper::Casting::ptr_cast<UScriptStruct**>(this, 0x28);
+        }
+        const UScriptStruct* UDataTable::GetRowStruct() const
+        {
+            return *Helper::Casting::ptr_cast<UScriptStruct**>(this, 0x28);
+        }
 
-		/*
-		if (!EmptyUsingStruct)
-		{
-			if (!HasAnyFlags(RF_ClassDefaultObject) && GetOutermost() != GetTransientPackage())
-			{
-				UE_LOG(LogDataTable, Error, TEXT("Missing RowStruct while emptying DataTable '%s'!"), *GetPathName());
-			}
-			EmptyUsingStruct = FTableRowBase::StaticStruct();
-		}
-		*/
+        UScriptStruct* UDataTable::GetEmptyUsingStruct() const
+        {
+            const UScriptStruct* RowStructPtr = GetRowStruct();
+            if (!RowStructPtr)
+            {
+                // Use FTableRowBase as fallback
+                static UScriptStruct* TableRowBaseStruct = nullptr;
+                if (!TableRowBaseStruct)
+                {
+                    // Try to find FTableRowBase struct in the engine
+                    TableRowBaseStruct = static_cast<UScriptStruct*>(UObjectGlobals::StaticFindObject(
+                        UScriptStruct::StaticClass(),
+                        nullptr,
+                        STR("/Script/Engine.TableRowBase")));
 
-		if (!EmptyUsingStruct)
-		{
-			Output::send<LogLevel::Warning>(STR("UDataTable::GetEmptyUsingStruct : Unable to find the underlying row struct for the DataTable. Functionality will likely not work or be undefined behavior."));
-		}
+                    if (!TableRowBaseStruct)
+                    {
+                        // If we can't find it, create a minimal struct
+                        throw std::runtime_error("FTableRowBase struct not found and RowStruct is null");
+                    }
+                }
+                return TableRowBaseStruct;
+            }
+            return const_cast<UScriptStruct*>(RowStructPtr);
+        }
 
-		return *EmptyUsingStruct;
-	}
-
-	void UDataTable::AddRowInternal(FName RowName, uint8* RowData)
-	{
-		GetRowMap().Add(RowName, RowData);
-	}
-
-	void UDataTable::RemoveRowInternal(FName RowName)
-	{
-		UScriptStruct& EmptyUsingStruct = GetEmptyUsingStruct();
-
-		uint8* RowData = nullptr;
-		GetRowMap().RemoveAndCopyValue(RowName, RowData);
-
-		if (RowData)
-		{
-			EmptyUsingStruct.DestroyStruct(RowData);
-			FMemory::Free(RowData);
-		}
-	}
-
-    UClass* UDataTable::StaticClass()
+    void UDataTable::EmptyTable()
     {
-        static auto Class = UECustom::UObjectGlobals::StaticFindObject<UClass*>(nullptr, nullptr, STR("/Script/Engine.DataTable"));
-        return Class;
+        UScriptStruct* EmptyUsingStruct = GetEmptyUsingStruct();
+
+        // Get mutable reference to RowMap
+        TMap<RC::Unreal::FName, unsigned char*>& MutableRowMap = GetRowMap();
+
+        // Iterate over all rows in table and free mem
+        for (auto& Pair : MutableRowMap)
+        {
+            uint8* RowData = Pair.Value;
+            EmptyUsingStruct->DestroyStruct(RowData);
+            FMemory::Free(RowData);
+        }
+
+        // Finally empty the map
+        MutableRowMap.Empty();
     }
 
-	TMap<FName, uint8*>& UDataTable::GetRowMap()
-	{
-		return *Helper::Casting::ptr_cast<TMap<FName, uint8*>*>(this, 0x30);
-	}
+    void UDataTable::RemoveRow(RC::Unreal::FName RowName)
+    {
+        RemoveRowInternal(RowName);
+    }
 
-	const TMap<FName, uint8*>& UDataTable::GetRowMap() const
-	{
-		return *Helper::Casting::ptr_cast<TMap<FName, uint8*>*>(this, 0x30);
-	}
+    void UDataTable::RemoveRowInternal(RC::Unreal::FName RowName)
+    {
+        UScriptStruct* EmptyUsingStruct = GetEmptyUsingStruct();
 
-	TObjectPtr<UScriptStruct>& UDataTable::GetRowStruct()
-	{
-		return *Helper::Casting::ptr_cast<TObjectPtr<UScriptStruct>*>(this, 0x28);
-	}
+        TMap<RC::Unreal::FName, unsigned char*>& MutableRowMap = GetRowMap();
+        uint8* RowData = nullptr;
 
-	const TObjectPtr<UScriptStruct>& UDataTable::GetRowStruct() const
-	{
-		return *Helper::Casting::ptr_cast<const TObjectPtr<UScriptStruct>*>(this, 0x28);
-	}
+        if (MutableRowMap.RemoveAndCopyValue(RowName, RowData))
+        {
+            if (RowData)
+            {
+                EmptyUsingStruct->DestroyStruct(RowData);
+                FMemory::Free(RowData);
+            }
+        }
+    }
 
-	void UDataTable::AddRow(RC::Unreal::FName RowName, UECustom::FTableRowBase& RowData)
-	{
-		UScriptStruct& EmptyUsingStruct = GetEmptyUsingStruct();
+    void UDataTable::AddRow(RC::Unreal::FName RowName, const FTableRowBase& RowData)
+    {
+        UScriptStruct* EmptyUsingStruct = GetEmptyUsingStruct();
 
-		// We want to delete the row memory even for child classes that override remove
-		RemoveRowInternal(RowName);
+        // We want to delete the row memory even if it already exists
+        RemoveRowInternal(RowName);
 
-		uint8* NewRawRowData = (uint8*)FMemory::Malloc(EmptyUsingStruct.GetStructureSize());
+        uint8* NewRawRowData = (uint8*)FMemory::Malloc(EmptyUsingStruct->GetSize());
 
-		EmptyUsingStruct.InitializeStruct(NewRawRowData);
-		EmptyUsingStruct.CopyScriptStruct(NewRawRowData, &RowData);
+        EmptyUsingStruct->InitializeStruct(NewRawRowData);
+        EmptyUsingStruct->CopyScriptStruct(NewRawRowData, &RowData);
 
-		// Add to map
-		AddRowInternal(RowName, NewRawRowData);
-	}
+        // Add to map
+        AddRowInternal(RowName, NewRawRowData);
+    }
 
-	void UDataTable::RemoveRow(RC::Unreal::FName RowName)
-	{
-		RemoveRowInternal(RowName);
-	}
+    void UDataTable::AddRow(RC::Unreal::FName RowName, const uint8* RowData, const UScriptStruct* RowType)
+    {
+        UScriptStruct* EmptyUsingStruct = GetEmptyUsingStruct();
 
-	void UDataTable::GetAllRowNames(TArray<FName>& OutRowNames)
-	{
-		UE_BEGIN_NATIVE_FUNCTION_BODY("/Script/Engine.DataTableFunctionLibrary:GetDataTableRowNames")
+        if (RowType != EmptyUsingStruct)
+        {
+            Output::send<LogLevel::Error>(STR("AddRow called with an incompatible row type! Got '{}', but expected '{}'\n"),
+                RowType->GetPathName(), EmptyUsingStruct->GetPathName());
+            return;
+        }
 
-		// Manual expansion of: UE_COPY_PROPERTY(this, UDataTable*)
-		auto thisProperty = Function->FindProperty(FName(STR("Table")));
+        // We want to delete the row memory even if it already exists
+        RemoveRowInternal(RowName);
 
-		if (!thisProperty)
-		{
-			throw std::runtime_error{ "Property not found: '""Table""'" };
-		}
+        uint8* NewRawRowData = (uint8*)FMemory::Malloc(EmptyUsingStruct->GetSize());
 
-		*std::bit_cast<UDataTable**>(&ParamData[thisProperty->GetOffset_Internal()]) = static_cast<UDataTable*>(this);
-		// End of manual expansion.
+        EmptyUsingStruct->InitializeStruct(NewRawRowData);
+        EmptyUsingStruct->CopyScriptStruct(NewRawRowData, RowData);
 
-		// Intentionally don't pass in our TArray<FName>&.
-		// This allows UE to create and manage its own out array that we copy to our UE4SS TArray.
-		// There's some inconsistent behavior when we try and pass in our UE4SS TArray, so this way is more stable
-		// at the cost of an additional copy operation/mem allocation.
+        // Add to map
+        AddRowInternal(RowName, NewRawRowData);
+    }
 
-		UE_CALL_FUNCTION()
-		UE_COPY_OUT_PROPERTY(OutRowNames, TArray<FName>)
-	}
+    void UDataTable::AddRowInternal(FName RowName, uint8* RowDataPtr)
+    {
+        TMap<RC::Unreal::FName, unsigned char*>& MutableRowMap = GetRowMap();
+        MutableRowMap.Add(RowName, RowDataPtr);
+    }
 
-	auto UDataTable::FindRowUnchecked(FName RowName) const -> uint8*
-	{
-		if (GetRowStruct().Get() == nullptr)
-		{
-			return nullptr;
-		}
-		// Cast away constness due to the const AND non-const version of GetRowMap().
-		TMap<FName, unsigned char*>& rowMap = const_cast<TMap<FName, unsigned char*>&>(GetRowMap());
+    TArray<FName> UDataTable::GetRowNames() const
+    {
+        TArray<RC::Unreal::FName> RowNames;
+        const TMap<RC::Unreal::FName, unsigned char*>& RowMapRef = GetRowMap();
 
-		// If is RowName is none, it won't find anything in the map
-		uint8* const* RowDataPtr = rowMap.Find(RowName);
+        RowNames.Reserve(RowMapRef.Num());
+        for (auto& Pair : RowMapRef)
+        {
+            RowNames.Add(Pair.Key);
+        }
 
-		if (RowDataPtr == nullptr)
-		{
-			return nullptr;
-		}
-
-		return *RowDataPtr;
-	}
+        return RowNames;
+    }
 }

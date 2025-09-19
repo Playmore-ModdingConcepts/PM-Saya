@@ -153,6 +153,6 @@ namespace Palworld::PropertyHelper {
     template <RC::Unreal::FFieldDerivative FFieldDerivedType>
     FFieldDerivedType* CastProperty(RC::Unreal::FField* Field)
     {
-        return Field != nullptr && IsPropertyA<FFieldDerivedType>(Field) ? static_cast<FFieldDerivedType*>(Field) : nullptr;
+        return RC::Unreal::CastField<FFieldDerivedType>(Field);
     }
 }

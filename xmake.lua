@@ -1,4 +1,4 @@
-local projectName = "PalSchema"
+local projectName = "PlaymoreCXX"
 
 includes("deps")
 

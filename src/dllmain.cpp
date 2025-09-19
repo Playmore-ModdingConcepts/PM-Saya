@@ -1,12 +1,20 @@
 #include "Mod/CppUserModBase.hpp"
 #include "UE4SSProgram.hpp"
+#include "Unreal/AActor.hpp"
+#include "Unreal/UClass.hpp"
+#include "Unreal/UFunction.hpp"
 #include "Loader/PalMainLoader.h"
+#include "Tools/EnumSchemaDefinitionGenerator.h"
 #include "Utility/Config.h"
 #include "Utility/Logging.h"
 #include "SDK/PalSignatures.h"
 #include "SDK/Classes/Async.h"
+#include "SDK/Helper/BPGeneratedClassHelper.h"
+#include "SDK/Classes/Custom/UBlueprintGeneratedClass.h"
+#include "SDK/Classes/Custom/UInheritableComponentHandler.h"
 #include "SDK/UnrealOffsets.h"
-#include "../version.h"
+#include "SDK/Classes/UDataTable.h"
+#include "SDK/StaticClassStorage.h"
 
 using namespace RC;
 using namespace RC::Unreal;
@@ -16,42 +24,23 @@ class PalSchema : public RC::CppUserModBase
 public:
     PalSchema() : CppUserModBase()
     {
-        auto Version = std::format(STR("{}.{}.{}"), VERSION_MAJOR, VERSION_MINOR, VERSION_REVISION);
-
-        ModName = STR("PalSchema");
-        ModVersion = Version;
-        ModDescription = STR("Allows modifying of Palworld's assets dynamically.");
-        ModAuthors = STR("Okaetsu");
-
-        if (!has_member_variable_layout())
-        {
-            PS::Log<LogLevel::Error>(STR("MemberVariableLayout.ini is missing, unable to start PalSchema. Please ensure you are using UE4SS from https://github.com/Okaetsu/RE-UE4SS/releases/tag/experimental-palworld which comes with MemberVariableLayout.ini\n"));
-            return;
-        }
+        ModName = STR("SAYA");
+        ModVersion = STR("0.4.2");
+        ModDescription = STR("Playmore SAYA Module -  based on a modified PalSchema");
+        ModAuthors = STR("build. Created by Okaetsu and Rythus");
 
         PS::PSConfig::Load();
 
         PS::Log<LogLevel::Verbose>(STR("Initializing SignatureManager...\n"));
         Palworld::SignatureManager::Initialize();
 
-        PS::Log<LogLevel::Verbose>(STR("Initializing UnrealOffsets...\n"));
-        Palworld::UnrealOffsets::Initialize();
-
-        PS::Log<LogLevel::Verbose>(STR("Preparing to pre-initialize PalSchema...\n"));
         MainLoader.PreInitialize();
 
-        PS::Log<RC::LogLevel::Normal>(STR("{} v{} by {} loaded.\n"), ModName, ModVersion, ModAuthors);
+        PS::Log<RC::LogLevel::Normal>(STR("{} {} by {} loaded.\n"), ModDescription, ModVersion, ModAuthors);
     }
 
     ~PalSchema() override
     {
-    }
-
-    auto has_member_variable_layout() -> bool
-    {
-        namespace fs = std::filesystem;
-        auto MemberVariableLayoutFile = fs::path(UE4SSProgram::get_program().get_working_directory()) / "MemberVariableLayout.ini";
-        return fs::exists(MemberVariableLayoutFile);
     }
 
     auto reload_mods() -> void
@@ -63,27 +52,20 @@ public:
     {
         if (UE4SSProgram::settings_manager.Debug.DebugConsoleVisible)
         {
-            PS::Log<LogLevel::Verbose>(STR("GUI Console is visible, enabling ImGui for PalSchema...\n"));
-
             UE4SS_ENABLE_IMGUI()
 
-            PS::Log<LogLevel::Verbose>(STR("Registering Pal Schema tab in GUI Console...\n"));
-            register_tab(STR("Pal Schema"), [](CppUserModBase* instance) {
+            register_tab(ModName, [](CppUserModBase* instance) {
                 auto mod = dynamic_cast<PalSchema*>(instance);
                 if (!mod)
                 {
                     return;
                 }
 
-                if (ImGui::Button("Reload Schema Mods"))
+                if (ImGui::Button("Reload SAYA Module"))
                 {
-                    UECustom::AsyncTask(UECustom::ENamedThreads::GameThread, [mod]() {
-                        mod->reload_mods();
-                    });
+                    mod->reload_mods();
                 }
             });
-
-            PS::Log<LogLevel::Verbose>(STR("Finished registering Pal Schema tab for GUI Console.\n"));
         }
     }
 
@@ -97,10 +79,15 @@ public:
 
     auto on_unreal_init() -> void override
     {
-        MainLoader.Initialize();
+        Hook::RegisterProcessEventPostCallback([&](UObject* Context, UFunction* Function, void* Parms) {
+            if (m_hooked) return;
+            m_hooked = true;
+            MainLoader.Initialize();
+        });
     }
 private:
     Palworld::PalMainLoader MainLoader;
+    bool m_hooked = false;
 };
 
 

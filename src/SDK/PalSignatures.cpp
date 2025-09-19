@@ -23,7 +23,6 @@ namespace Palworld {
                         void* FunctionPointer = static_cast<void*>(self.get_match_address());
 
                         SignatureMap.emplace(ClassAndName, FunctionPointer);
-                        PS::Log<LogLevel::Normal>(STR("Found {}: {}\n"), RC::to_generic_string(ClassAndName), FunctionPointer);
 
                         self.get_did_succeed() = true;
 
@@ -32,7 +31,7 @@ namespace Palworld {
                     [=](const SignatureContainer& self) {
                         if (!self.get_did_succeed())
                         {
-                            PS::Log<RC::LogLevel::Error>(STR("Failed to find signature for {}.\n"), RC::to_generic_string(ClassAndName));
+                            // PS::Log<RC::LogLevel::Error>(STR("Failed to find signature for {}.\n"), RC::to_generic_string(ClassAndName));
                         }
                     }
                 };
@@ -47,10 +46,8 @@ namespace Palworld {
                     {{Signature}},
                     [=](SignatureContainer& self) {
                         void* FunctionPointer = static_cast<void*>(self.get_match_address());
-                        void* FinalAddress = ASM::resolve_call(FunctionPointer);
 
-                        SignatureMap.emplace(ClassAndName, FinalAddress);
-                        PS::Log<LogLevel::Normal>(STR("Found {}: {}\n"), RC::to_generic_string(ClassAndName), FinalAddress);
+                        SignatureMap.emplace(ClassAndName, ASM::resolve_call(FunctionPointer));
 
                         self.get_did_succeed() = true;
 
@@ -59,7 +56,7 @@ namespace Palworld {
                     [=](const SignatureContainer& self) {
                         if (!self.get_did_succeed())
                         {
-                            PS::Log<RC::LogLevel::Error>(STR("Failed to find signature for {}.\n"), RC::to_generic_string(ClassAndName));
+                            // PS::Log<RC::LogLevel::Error>(STR("Failed to find signature for {}.\n"), RC::to_generic_string(ClassAndName));
                         }
                     }
                 };

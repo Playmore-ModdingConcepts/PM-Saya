@@ -6,7 +6,6 @@
 
 namespace UECustom {
 	class UDataTable;
-	class UCompositeDataTable;
 }
 
 namespace Palworld {
@@ -24,11 +23,7 @@ namespace Palworld {
 
 		void Initialize();
 
-        void OnDataTableChanged(UECustom::UDataTable* Table);
-
-        void Apply(const RC::StringType& TableName, UECustom::UDataTable* Table);
-
-        void Apply(UECustom::UCompositeDataTable* Table);
+        void Apply(UECustom::UDataTable* Table);
 
         void Apply(const nlohmann::json& Data, UECustom::UDataTable* Table, LoadResult& OutResult);
 
@@ -46,8 +41,6 @@ namespace Palworld {
         void EditRow(UECustom::UDataTable* Table, const RC::Unreal::FName& RowName, RC::Unreal::uint8* Row, const nlohmann::json& Data, LoadResult& OutResult);
 
         void DeleteRow(UECustom::UDataTable* Table, const RC::Unreal::FName& RowName, LoadResult& OutResult);
-
-        void ModifyRowProperties(UECustom::UDataTable* Table, const RC::Unreal::FName& RowName, void* RowPtr, const nlohmann::json& Data, LoadResult& OutResult);
 
         void AddToTableDataMap(const std::string& TableName, const nlohmann::json& Data);
 	};

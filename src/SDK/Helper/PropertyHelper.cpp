@@ -526,10 +526,9 @@ namespace Palworld {
     RC::Unreal::FProperty* PropertyHelper::GetPropertyByName(RC::Unreal::UScriptStruct* Struct, const RC::StringType& PropertyName)
     {
         FProperty* Property = nullptr;
-        FName PropertyFName = FName(PropertyName, FNAME_Add);
         for (FProperty* It = Struct->GetPropertyLink(); It != nullptr; It = It->GetPropertyLinkNext())
         {
-            if (It->GetFName() == PropertyFName)
+            if (It->GetName() == PropertyName)
             {
                 Property = It;
             }
