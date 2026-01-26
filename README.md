@@ -3,6 +3,6 @@
 
 Playmore SAYA Module - Based on Palschema 0.4.2
 
-https://www.moddb.com/mods/playmore/downloads/pm-saya-preview
+*Links to be updated at a later point
 
 PalSchema's documentation : https://github.com/Okaetsu/PalSchema
