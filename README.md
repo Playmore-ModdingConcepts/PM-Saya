@@ -1,6 +1,6 @@
-<img width="1920" height="1080" alt="0-Saya" src="https://github.com/user-attachments/assets/8d866911-c3ae-47c6-a3e7-9999e0676238" />
+<img width="1920" height="1080" alt="0-Saya" src="https://cdn.imgchest.com/files/b9f257e4d5d2.png" />
 <p align="center">
-(<a href="https://staticdelivery.nexusmods.com/mods/2777/images/3210/3210-1759798953-1985151782.png">"Non-weeb" logo version</a>)
+(<a href="https://cdn.imgchest.com/files/92e074f9c92e.png">"Non-weeb" logo version</a>)
 </p>
 
 Playmore SAYA Module - Based on Palschema(*0.4.2 hybrid) and TFW-Workbench(0.3.0)
