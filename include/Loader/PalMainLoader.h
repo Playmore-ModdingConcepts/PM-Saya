@@ -2,17 +2,24 @@
 
 #include <vector>
 #include <functional>
-#include "Loader/PalLanguageModLoader.h"
 #include "Loader/PalRawTableLoader.h"
 #include "Loader/PalBlueprintModLoader.h"
 #include "Loader/PalEnumLoader.h"
 #include "FileWatch.hpp"
 
-namespace UECustom {
+namespace RC::Unreal {
+    class AGameModeBase;
     class UDataTable;
 }
 
+namespace UECustom {
+    class UCompositeDataTable;
+    class UWorldPartitionRuntimeLevelStreamingCell;
+}
+
 namespace Palworld {
+    class UPalStaticItemDataTable;
+
 	class PalMainLoader {
 	public:
         PalMainLoader();
@@ -26,42 +33,38 @@ namespace Palworld {
         // Should be called in Game Thread
         void ReloadMods();
 	private:
-        PalLanguageModLoader LanguageModLoader;
-		PalRawTableLoader RawTableLoader;
-		PalBlueprintModLoader BlueprintModLoader;
         PalEnumLoader EnumLoader;
-
-        int m_errorCount = 0;
 
         std::unique_ptr<filewatch::FileWatch<std::wstring>> m_fileWatch;
 
         void SetupAutoReload();
 
-        // Makes SAYA read paks from the 'PM-Saya/SAYA/mods' folder. Although the paks can be anywhere, prefer for them to be put inside 'YourModName/paks'.
-        // This is intended for custom assets like models or textures that are part of a schema mod which makes it easier for modders to package their mod.
-        // Requires a signature for FPakPlatformFile::GetPakFolders, otherwise this feature will not be available.
-        void SetupAlternativePakPathReader();
+        void InitCore();
 
-		void Load();
+        void InitLoaders();
 
-        void LoadLanguageMods(const std::filesystem::path& path);
-
-		void LoadRawTables(const std::filesystem::path& path);
-
-		void LoadBlueprintMods(const std::filesystem::path& path);
-
-		void LoadBlueprintModsSafe(const std::filesystem::path& path);
+		void LoadLanguageMods(const std::filesystem::path& path);
 
         void LoadCustomEnums();
 
-        void IterateModsFolder(const std::function<void(const std::filesystem::directory_entry&)>& callback);
+        void IterateModsFolder(const std::function<void(const std::filesystem::path&, const std::filesystem::path::string_type&)>& callback);
 
         void ParseJsonFileInPath(const std::filesystem::path& path, const std::function<void(const nlohmann::json&)>& callback);
 
         void ParseJsonFilesInPath(const std::filesystem::path& path, const std::function<void(const nlohmann::json&)>& callback);
     private:
+        static void PostLoad(RC::Unreal::UClass* This);
+
         static void GetPakFolders(const RC::Unreal::TCHAR* CmdLine, RC::Unreal::TArray<RC::Unreal::FString>* OutPakFolders);
 
-        static inline SafetyHookInline GetPakFolders_Hook;
+        static void OnDataTableSerialized(RC::Unreal::UDataTable* This, RC::Unreal::FArchive* Archive);
+
+        static void OnGameInstanceInit(RC::Unreal::UObject* This);
+
+        static RC::Unreal::UObject* StaticItemDataTable_Get(UPalStaticItemDataTable* This, RC::Unreal::FName ItemId);
+
+        static void UWorld_CleanupWorld(RC::Unreal::UWorld* This, bool bSessionEnded, bool bCleanupResources, RC::Unreal::UWorld* NewWorld);
+
+        bool m_hasInit = false;
 	};
 }

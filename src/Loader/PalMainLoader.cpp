@@ -1,6 +1,7 @@
 #include <fstream>
 #include <filesystem>
-#include "Unreal/UClass.hpp"
+#include "Unreal/CoreUObject/UObject/Class.hpp"
+#include "Unreal/UFunction.hpp"
 #include "Unreal/Hooks.hpp"
 #include "Utility/Config.h"
 #include "Utility/Logging.h"
@@ -8,7 +9,7 @@
 #include "SDK/Classes/Custom/UDataTableStore.h"
 #include "SDK/Classes/Custom/UObjectGlobals.h"
 #include "SDK/Classes/UDataTable.h"
-#include "SDK/PalSignatures.h"
+#include "SDK/Classes/UWorldPartitionRuntimeLevelStreamingCell.h"
 #include "SDK/StaticClassStorage.h"
 #include "SDK/UnrealOffsets.h"
 #include "UE4SSProgram.hpp"
@@ -19,225 +20,99 @@ using namespace RC::Unreal;
 
 namespace fs = std::filesystem;
 
+namespace constants {
+    // FOLDERS //
+    constexpr std::string enumsFolder           = "enums";
+}
+
 namespace Palworld {
     PalMainLoader::PalMainLoader() {}
 
     PalMainLoader::~PalMainLoader()
     {
-        auto expected = GetPakFolders_Hook.disable();
-        GetPakFolders_Hook = {};
     }
 
     void PalMainLoader::PreInitialize()
     {
-        SetupAlternativePakPathReader();
     }
 
     void PalMainLoader::Initialize()
 	{
-        SetupAutoReload();
-
         LoadCustomEnums();
-
-        RawTableLoader.Initialize();
-
-        std::vector<fs::path::string_type> listOfModsWithErrors;
-
-        IterateModsFolder([&](const fs::directory_entry& modFolder) {
-            auto modName = modFolder.path().stem().native();
-            try
-            {
-                PS::Log<RC::LogLevel::Normal>(STR("Loading mod: {}\n"), modName);
-
-                auto rawFolder = modFolder.path() / "raw";
-                LoadRawTables(rawFolder);
-            }
-            catch (const std::exception&)
-            {
-                listOfModsWithErrors.push_back(modName);
-            }
-        });
-
-        auto errorCount = listOfModsWithErrors.size();
-        m_errorCount += errorCount;
 	}
 
     void PalMainLoader::ReloadMods()
     {
-        IterateModsFolder([&](const fs::directory_entry& modFolder) {
-            auto& modsPath = modFolder.path();
-            auto modName = modsPath.stem().native();
-            try
-            {
-                PS::Log<RC::LogLevel::Normal>(STR("Reloading mod: {}\n"), modName);
+        PS::Log<LogLevel::Normal>(STR("Reloading mods...\n"));
 
-                auto blueprintFolder = modFolder.path() / "blueprints";
-                LoadBlueprintMods(blueprintFolder);
+        auto loadErrorCallback = [](const fs::path::string_type& modName, const std::exception& e) {
+            PS::Log<LogLevel::Error>(STR("Failed to reload mod {} - {}\n"), modName, RC::to_generic_string(e.what()));
+        };
 
-                auto rawFolder = modFolder.path() / "raw";
-                LoadRawTables(rawFolder);
-
-                auto translationsFolder = modsPath / "translations";
-                LoadLanguageMods(translationsFolder);
-            }
-            catch (const std::exception& e)
-            {
-                PS::Log<LogLevel::Error>(STR("Failed to reload mod {} - {}\n"), modName, RC::to_generic_string(e.what()));
-            }
-        });
+        PS::Log<LogLevel::Normal>(STR("Finished reloading mods.\n"));
     }
 
-    void PalMainLoader::SetupAutoReload()
+    void PalMainLoader::InitCore()
     {
-        if (!PS::PSConfig::IsAutoReloadEnabled()) return;
+        if (m_hasInit) return;
+        m_hasInit = true;
 
-        PS::Log<LogLevel::Normal>(STR("Auto-reload is enabled.\n"));
+        PS::Log<LogLevel::Verbose>(STR("Initializing Static Class Storage...\n"));
+        Palworld::StaticClassStorage::Initialize();
 
-        m_fileWatch = std::make_unique<filewatch::FileWatch<std::wstring>>(
-            fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PlaymoreCXX" / "SAYA" / "mods",
-            std::wregex(L".*\\.(json|jsonc)"),
-            [&](const std::wstring& path, const filewatch::Event change_type) {
-                if (change_type == filewatch::Event::modified)
-                {
-                    auto ue4ssPath = fs::path(UE4SSProgram::get_program().get_working_directory());
-                    auto modFilePath = ue4ssPath / "Mods" / "PlaymoreCXX" / "SAYA" / "mods" / path;
+        LoadCustomEnums();
 
-                    std::ifstream f(modFilePath);
-                    if (f.peek() == std::ifstream::traits_type::eof()) {
-                        return;
-                    }
-                    f.close();
-
-                    UECustom::AsyncTask(UECustom::ENamedThreads::GameThread, [this, path, modFilePath]() {
-                        auto subPath = fs::path(path);
-                        auto it = subPath.begin();
-                        if (std::distance(subPath.begin(), subPath.end()) >= 2) {
-                            auto modName = it->native();
-
-                            std::advance(it, 1);
-                            auto folderType = it->string();
-                            try
-                            {
-                                ParseJsonFileInPath(modFilePath, [&](const nlohmann::json& data) {
-                                    if (folderType == "blueprints")
-                                    {
-                                        BlueprintModLoader.Load(data);
-                                    }
-                                    else if (folderType == "raw")
-                                    {
-                                        RawTableLoader.Reload(data);
-                                    }
-                                    else if (folderType == "enums")
-                                    {
-                                        EnumLoader.Load(data);
-                                    }
-                                    else if (folderType == "translations")
-                                    {
-                                        LanguageModLoader.Load(data);
-                                    }
-                                });
-
-                                PS::Log<LogLevel::Normal>(STR("Reloaded mod {}\n"), modName);
-                            }
-                            catch (const std::exception& e)
-                            {
-                                PS::Log<LogLevel::Error>(STR("Failed to reload mod {} - {}\n"), modName, RC::to_generic_string(e.what()));
-                            }
-                        }
-                    });
-                }
-            }
-        );
-    }
-
-    void PalMainLoader::SetupAlternativePakPathReader()
-    {
-        auto GetPakFolders_Address = Palworld::SignatureManager::GetSignature("FPakPlatformFile::GetPakFolders");
-        if (GetPakFolders_Address)
+        // Should in theory be more consistent than finding a signature for BlueprintGeneratedClass::PostLoad
+        auto BlueprintGeneratedClass = UECustom::UObjectGlobals::StaticFindObject<UClass*>(nullptr, nullptr, STR("/Script/Engine.BlueprintGeneratedClass"), false);
+        if (!BlueprintGeneratedClass)
         {
-            GetPakFolders_Hook = safetyhook::create_inline(reinterpret_cast<void*>(GetPakFolders_Address),
-                GetPakFolders);
-        }
-    }
-
-    void PalMainLoader::Load()
-	{
-        std::vector<fs::path::string_type> listOfModsWithErrors;
-
-        IterateModsFolder([&](const fs::directory_entry& modFolder) {
-            auto& modsPath = modFolder.path();
-            auto modName = modsPath.stem().native();
-
-            try
-            {
-                PS::Log<RC::LogLevel::Normal>(STR("Loading mod: {}\n"), modName);
-
-                auto blueprintFolder = modFolder.path() / "blueprints";
-                LoadBlueprintMods(blueprintFolder);
-
-                auto translationsFolder = modsPath / "translations";
-                LoadLanguageMods(translationsFolder);
-            }
-            catch (const std::exception&)
-            {
-                listOfModsWithErrors.push_back(modName);
-            }
-        });
-
-        auto errorCount = listOfModsWithErrors.size();
-        m_errorCount += errorCount;
-	}
-
-    void PalMainLoader::LoadLanguageMods(const std::filesystem::path& path)
-    {
-        const auto& currentLanguage = LanguageModLoader.GetCurrentLanguage();
-
-        auto globalLanguageFolder = path / "global";
-        if (fs::exists(globalLanguageFolder))
-        {
-            ParseJsonFilesInPath(globalLanguageFolder, [&](nlohmann::json data) {
-                LanguageModLoader.Load(data);
-            });
+            PS::Log<LogLevel::Error>(STR("Failed to find BlueprintGeneratedClass. Cannot hook PostLoad.\n"));
+            return;
         }
 
-        auto translationLanguageFolder = path / currentLanguage;
-        if (fs::exists(translationLanguageFolder))
+        PS::Log<LogLevel::Verbose>(STR("Fetching default object for UBlueprintGeneratedClass...\n"));
+        uintptr_t* BGCVTablePtr = *(uintptr_t**)BlueprintGeneratedClass->GetClassDefaultObject();
+        void* PostLoadPtr = (void*)BGCVTablePtr[20];
+        PS::Log<LogLevel::Verbose>(STR("Found UBlueprintGeneratedClass::PostLoad: {}\n"), PostLoadPtr);
+
+        auto PalGameInstanceClass = UECustom::UObjectGlobals::StaticFindObject<UClass*>(nullptr, nullptr, STR("/Script/Pal.PalGameInstance"));
+        if (!PalGameInstanceClass)
         {
-            ParseJsonFilesInPath(translationLanguageFolder, [&](nlohmann::json data) {
-                LanguageModLoader.Load(data);
-            });
+            PS::Log<LogLevel::Error>(STR("Failed to find PalGameInstance. Cannot hook OnGameInstanceInit.\n"));
+            return;
         }
+
+        PS::Log<LogLevel::Verbose>(STR("Fetching default object for UPalGameInstance...\n"));
+        uintptr_t** PGIVTablePtr = *(uintptr_t***)PalGameInstanceClass->GetClassDefaultObject();
+        void* GameInstanceInitPtr = (void*)PGIVTablePtr[90];
+        PS::Log<LogLevel::Verbose>(STR("Found UPalGameInstance::Init: {}\n"), GameInstanceInitPtr);
+
+        PS::Log<LogLevel::Verbose>(STR("Initialized Core\n"));
     }
 
-    void PalMainLoader::LoadRawTables(const std::filesystem::path& path)
+    void PalMainLoader::InitLoaders()
     {
-        ParseJsonFilesInPath(path, [&](nlohmann::json data) {
-            RawTableLoader.Load(data);
-        });
-    }
+        PS::Log<LogLevel::Verbose>(STR("Initializing UDataTable storage...\n"));
+        UECustom::UDataTableStore::Initialize();
 
-    void PalMainLoader::LoadBlueprintMods(const std::filesystem::path& path)
-    {
-        ParseJsonFilesInPath(path, [&](nlohmann::json data) {
-            BlueprintModLoader.Load(data);
-        });
-    }
+        PS::Log<LogLevel::Verbose>(STR("Initializing Loaders...\n"));
+        PS::Log<LogLevel::Verbose>(STR("Initialized Loaders\n"));
+        PS::Log<LogLevel::Normal>(STR("Loading mods...\n"));
 
-    void PalMainLoader::LoadBlueprintModsSafe(const std::filesystem::path& path)
-    {
-        ParseJsonFilesInPath(path, [&](nlohmann::json data) {
-            BlueprintModLoader.LoadSafe(data);
-        });
+        auto loadErrorCallback = [](const fs::path::string_type& modName, const std::exception& e) {
+            PS::Log<LogLevel::Error>(STR("Failed to load mod {} - {}\n"), modName, RC::to_generic_string(e.what()));
+        };
+
+        PS::Log<LogLevel::Normal>(STR("Finished loading mods.\n"));
     }
 
     void PalMainLoader::LoadCustomEnums()
     {
         EnumLoader.Initialize();
 
-        IterateModsFolder([&](const fs::directory_entry& modFolder) {
-            auto& modsPath = modFolder.path();
-            auto modName = modsPath.stem().native();
-            auto enumsFolder = modFolder.path() / "enums";
+        PS::Log<LogLevel::Verbose>(STR("Loading custom enums...\n"));
+        IterateModsFolder([&](const fs::path& modPath, const fs::path::string_type& modName) {
+            auto enumsFolder = modPath / constants::enumsFolder;
             ParseJsonFilesInPath(enumsFolder, [&](nlohmann::json data) {
                 try
                 {
@@ -249,17 +124,21 @@ namespace Palworld {
                 }
             });
         });
+
+        PS::Log<LogLevel::Verbose>(STR("Finished loading custom enums.\n"));
     }
 
-    void PalMainLoader::IterateModsFolder(const std::function<void(const std::filesystem::directory_entry&)>& callback)
+    void PalMainLoader::IterateModsFolder(const std::function<void(const std::filesystem::path&, const std::filesystem::path::string_type&)>& callback)
     {
-        auto cwd = fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PlaymoreCXX" / "SAYA" / "mods";
+        auto cwd = fs::path(UE4SSProgram::get_program().get_game_executable_directory()) / "Game" / "Content" / "Paks" / "~DefaultMods" / "SAYA-R1";
         if (fs::exists(cwd))
         {
             for (const auto& entry : fs::directory_iterator(cwd)) {
                 if (entry.is_directory())
                 {
-                    callback(entry);
+                    auto& path = entry.path();
+                    auto folderName = path.stem().native();
+                    callback(entry.path(), folderName);
                 }
             }
         }
@@ -307,26 +186,7 @@ namespace Palworld {
         }
     }
 
-    void PalMainLoader::GetPakFolders(const TCHAR* CmdLine, TArray<FString>* OutPakFolders)
+    void PalMainLoader::PostLoad(UClass* This)
     {
-        GetPakFolders_Hook.call(CmdLine, OutPakFolders);
-
-        try
-        {
-            // Calling this here, because we want GMalloc to be available ASAP inside this hook so we can make our changes to the TArray.
-            // Once UE4SS starts running things on Game Thread, this could be moved to PreInitialize.
-            UnrealOffsets::InitializeGMalloc();
-        }
-        catch (const std::exception& e)
-        {
-            PS::Log<LogLevel::Error>(STR("Failed to initialize GMalloc early: {}\n"), RC::to_generic_string(e.what()));
-        }
-
-        auto ModsFolderPath = fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PlaymoreCXX" / "SAYA" / "mods";
-        auto AbsolutePath = ModsFolderPath.native();
-        auto AbsolutePathWithSuffix = std::format(STR("{}/"), RC::to_generic_string(AbsolutePath));
-
-        // If GMalloc isn't properly initialized, accessing the TArray will crash.
-        OutPakFolders->Add(FString(AbsolutePathWithSuffix.c_str()));
     }
 }

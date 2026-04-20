@@ -1,179 +1,82 @@
-#include <filesystem>
-#include <fstream>
-#include <nlohmann/json.hpp>
-#include <DynamicOutput/DynamicOutput.hpp>
-#include <Helpers/String.hpp>
 #include "Utility/Config.h"
 #include "Utility/Logging.h"
+#include "Helpers/String.hpp"
+#include <fstream>
+#include "glaze/glaze.hpp"
 #include "UE4SSProgram.hpp"
 
 namespace fs = std::filesystem;
 
-using namespace RC;
-
 namespace PS {
-    void PSConfig::Load()
+    PSConfig* PSConfig::Get()
     {
-        if (s_config) return;
-
-        try
+        if (!s_config)
         {
             s_config = std::make_unique<PSConfig>();
-
-            auto cwd = fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "PlaymoreCXX" / "SAYA" / "config";
-
-            if (!fs::exists(cwd))
-            {
-                fs::create_directories(cwd);
-            }
-
-            std::ifstream f(cwd / "config.json");
-            bool ShouldResave = false;
-
-            nlohmann::ordered_json data = {};
-            if (f.fail()) {
-                // data["languageOverride"] = "";
-                data["enableAutoReload"] = false;
-                data["enableDebugLogging"] = false;
-                std::ofstream out_file(cwd / "config.json");
-                out_file << data.dump(4);
-                out_file.close();
-            }
-            else
-            {
-                data = nlohmann::ordered_json::parse(f);
-            }
-
-            // if (!GetString(data, "languageOverride", "", s_config->m_languageOverride))
-            // {
-                // data["languageOverride"] = "";
-                // ShouldResave = true;
-            // }
-
-            if (!GetBool(data, "enableAutoReload", false, s_config->m_enableAutoReload))
-            {
-                data["enableAutoReload"] = false;
-                ShouldResave = true;
-            }
-
-            if (!GetBool(data, "enableDebugLogging", false, s_config->m_enableDebugLogging))
-            {
-                data["enableDebugLogging"] = false;
-                ShouldResave = true;
-            }
-
-            if (TryRemoveDeprecatedValues(data))
-            {
-                ShouldResave = true;
-            }
-
-            if (ShouldResave)
-            {
-                std::ofstream out_file(cwd / "config.json");
-                out_file << data.dump(4);
-                out_file.close();
-            }
-
-            PS::Log<RC::LogLevel::Normal>(STR("Config loaded.\n"));
         }
-        catch (const std::exception& e)
-        {
-            PS::Log<RC::LogLevel::Error>(STR("Failed to load Config - {}\n"), RC::to_generic_string(e.what()));
-        }
+        
+        return s_config.get();
     }
 
-    std::string PSConfig::GetLanguageOverride()
-    {
-        if (s_config)
-        {
-            return s_config->m_languageOverride;
-        }
+    // std::string PSConfig::GetLanguageOverride()
+    // {
+        // auto config = Get();
+        // return config ? config->m_settings.languageOverride : "";
+    // }
 
-        PS::Log<RC::LogLevel::Error>(STR("Config must be initialized first before accessing GetLanguageOverride!"));
-
-        return "";
-    }
-
-    bool PSConfig::IsAutoReloadEnabled()
-    {
-        if (s_config)
-        {
-            return s_config->m_enableAutoReload;
-        }
-
-        PS::Log<RC::LogLevel::Error>(STR("Config must be initialized first before accessing IsAutoReloadEnabled!"));
-
-        return "";
-    }
+    // bool PSConfig::IsAutoReloadEnabled()
+    // {
+        // auto config = Get();
+        // return config ? config->m_settings.enableAutoReload : false;
+    // }
 
     bool PSConfig::IsDebugLoggingEnabled()
     {
-        if (s_config)
-        {
-            return s_config->m_enableDebugLogging;
-        }
-
-        PS::Log<RC::LogLevel::Error>(STR("Config must be initialized first before accessing IsDebugLoggingEnabled!"));
-
-        return false;
+        auto config = Get();
+        return config ? config->m_settings.enableDebugLogging : false;
     }
 
-    bool PSConfig::TryRemoveDeprecatedValues(nlohmann::ordered_json& Data)
+    void PSConfig::Load()
     {
-        bool wasDeprecationPerformed = false;
-        for (auto& deprecatedValue : s_deprecatedValues)
+        auto folderPath = GetConfigPath();
+        if (!fs::exists(folderPath))
         {
-            if (Data.contains(deprecatedValue))
-            {
-                Data.erase(deprecatedValue);
-                wasDeprecationPerformed = true;
-            }
+            fs::create_directory(folderPath);
         }
 
-        return wasDeprecationPerformed;
+        auto configFile = folderPath / "config.json";
+        if (!fs::exists(configFile))
+        {
+            this->Save();
+            PS::Log<RC::LogLevel::Warning>(STR("Config file not found, a new one was generated. Default values will be used.\n"));
+            return;
+        }
+
+        auto readErrorCode = glz::read_file_json < glz::opts{ .error_on_missing_keys = true } > (m_settings, configFile.string(), std::string{});
+        if (readErrorCode) {
+            std::string errorMessage = glz::format_error(readErrorCode, std::string{});
+            PS::Log<RC::LogLevel::Error>(STR("Error parsing config: {}\n"), RC::to_generic_string(errorMessage));
+            this->Save();
+            PS::Log<RC::LogLevel::Normal>(STR("Config has been repaired.\n"));
+        }
+
+        PS::Log<RC::LogLevel::Normal>(STR("Config loaded.\n"));
     }
 
-    bool PSConfig::GetString(const nlohmann::ordered_json& Data, const std::string& Key, const std::string& DefaultValue, std::string& OutValue)
+    std::filesystem::path PSConfig::GetConfigPath()
     {
-        if (!Data.contains(Key))
-        {
-            PS::Log<RC::LogLevel::Warning>(STR("{} in config.json was missing, adding to config.\n"), RC::to_generic_string(Key));
-            OutValue = DefaultValue;
-            return false;
-        }
-        else
-        {
-            if (!Data.at(Key).is_string())
-            {
-                PS::Log<RC::LogLevel::Warning>(STR("{} in config.json wasn't a string, fixing.\n"), RC::to_generic_string(Key));
-                OutValue = DefaultValue;
-                return false;
-            }
-        }
-
-        OutValue = Data[Key].get<std::string>();
-        return true;
+        static auto path = fs::path(UE4SSProgram::get_program().get_working_directory()) / "Mods" / "SAYA-R1" / "config";
+        return path;
     }
 
-    bool PSConfig::GetBool(const nlohmann::ordered_json& Data, const std::string& Key, const bool& DefaultValue, bool& OutValue)
+    void PSConfig::Save()
     {
-        if (!Data.contains(Key))
+        auto configFile = GetConfigPath() / "config.json";
+        auto writeErrorCode = glz::write_file_json<glz::opts{ .prettify = true }>(m_settings, configFile.string(), std::string{});
+        if (writeErrorCode)
         {
-            PS::Log<RC::LogLevel::Warning>(STR("{} in config.json was missing, adding to config.\n"), RC::to_generic_string(Key));
-            OutValue = DefaultValue;
-            return false;
+            std::string errorMessage = glz::format_error(writeErrorCode, std::string{});
+            PS::Log<RC::LogLevel::Error>(STR("Failed to write to config: {}\n"), RC::to_generic_string(errorMessage));
         }
-        else
-        {
-            if (!Data.at(Key).is_boolean())
-            {
-                PS::Log<RC::LogLevel::Warning>(STR("{} in config.json wasn't a boolean, fixing.\n"), RC::to_generic_string(Key));
-                OutValue = DefaultValue;
-                return false;
-            }
-        }
-
-        OutValue = Data[Key].get<bool>();
-        return true;
     }
 }

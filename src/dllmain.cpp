@@ -7,13 +7,8 @@
 #include "Tools/EnumSchemaDefinitionGenerator.h"
 #include "Utility/Config.h"
 #include "Utility/Logging.h"
-#include "SDK/PalSignatures.h"
 #include "SDK/Classes/Async.h"
-#include "SDK/Helper/BPGeneratedClassHelper.h"
-#include "SDK/Classes/Custom/UBlueprintGeneratedClass.h"
-#include "SDK/Classes/Custom/UInheritableComponentHandler.h"
 #include "SDK/UnrealOffsets.h"
-#include "SDK/Classes/UDataTable.h"
 #include "SDK/StaticClassStorage.h"
 
 using namespace RC;
@@ -24,19 +19,15 @@ class PalSchema : public RC::CppUserModBase
 public:
     PalSchema() : CppUserModBase()
     {
-        ModName = STR("SAYA");
-        ModVersion = STR("0.4.2");
-        ModDescription = STR("Playmore SAYA Module -  based on a modified PalSchema");
-        ModAuthors = STR("build. Created by Okaetsu and Rythus");
+        ModName = STR("SAYA - [R1]");
+        ModVersion = STR("0.5.2");
+        ModDescription = STR("Playmore SAYA Module Revision 1 -  based on PalSchema");
+        ModAuthors = STR("- Joint collaboration by Okaetsu and Rythus");
 
-        PS::PSConfig::Load();
+        auto config = PS::PSConfig::Get();
+        config->Load();
 
-        PS::Log<LogLevel::Verbose>(STR("Initializing SignatureManager...\n"));
-        Palworld::SignatureManager::Initialize();
-
-        MainLoader.PreInitialize();
-
-        PS::Log<RC::LogLevel::Normal>(STR("{} {} by {} loaded.\n"), ModDescription, ModVersion, ModAuthors);
+        PS::Log<RC::LogLevel::Normal>(STR("{} {} {} loaded.\n"), ModDescription, ModVersion, ModAuthors);
     }
 
     ~PalSchema() override
@@ -50,23 +41,6 @@ public:
 
     auto on_ui_init() -> void override
     {
-        if (UE4SSProgram::settings_manager.Debug.DebugConsoleVisible)
-        {
-            UE4SS_ENABLE_IMGUI()
-
-            register_tab(ModName, [](CppUserModBase* instance) {
-                auto mod = dynamic_cast<PalSchema*>(instance);
-                if (!mod)
-                {
-                    return;
-                }
-
-                if (ImGui::Button("Reload SAYA Module"))
-                {
-                    mod->reload_mods();
-                }
-            });
-        }
     }
 
     auto on_update() -> void override

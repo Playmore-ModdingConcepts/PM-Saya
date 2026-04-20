@@ -7,7 +7,7 @@
 #include "Unreal/FArchive.hpp"
 #include "Unreal/FOutputDevice.hpp"
 #include "Unreal/FProperty.hpp"
-#include "Unreal/UClass.hpp"
+#include "Unreal/CoreUObject/UObject/Class.hpp"
 #include "Unreal/UEnum.hpp"
 #include "Unreal/UGameViewportClient.hpp"
 #include "Unreal/UObject.hpp"
@@ -17,21 +17,11 @@
 #include "Unreal/ULocalPlayer.hpp"
 #include "Unreal/UStruct.hpp"
 #include "Unreal/UScriptStruct.hpp"
+#include "Unreal/Engine/UDataTable.hpp"
 #include "Unreal/World.hpp"
-#include "Unreal/Property/FArrayProperty.hpp"
-#include "Unreal/Property/FBoolProperty.hpp"
-#include "Unreal/Property/FClassProperty.hpp"
-#include "Unreal/Property/FDelegateProperty.hpp"
 #include "Unreal/Property/FEnumProperty.hpp"
 #include "Unreal/Property/FFieldPathProperty.hpp"
-#include "Unreal/Property/FInterfaceProperty.hpp"
-#include "Unreal/Property/FMapProperty.hpp"
-#include "Unreal/Property/FMulticastDelegateProperty.hpp"
-#include "Unreal/Property/FNumericProperty.hpp"
-#include "Unreal/Property/FObjectProperty.hpp"
-#include "Unreal/Property/FSetProperty.hpp"
-#include "Unreal/Property/FSoftClassProperty.hpp"
-#include "Unreal/Property/NumericPropertyTypes.hpp"
+#include "Unreal/CoreUObject/UObject/UnrealType.hpp"
 #include "Unreal/UnrealVersion.hpp"
 #include "Unreal/UnrealInitializer.hpp"
 #include "IniParser/Ini.hpp"
@@ -51,11 +41,15 @@ void Palworld::UnrealOffsets::Initialize()
 
     PS::Log<LogLevel::Verbose>(STR("Unreal Version set to {}.{}.\n"), Unreal::Version::Major, Unreal::Version::Minor);
 
-    FName::ConstructorInternal.assign_address(Palworld::SignatureManager::GetSignature("FName::Constructor"));
-    FName::ToStringInternal.assign_address(Palworld::SignatureManager::GetSignature("FName::ToString_Wchar"));
+    auto FNameConstructorAddress = Palworld::SignatureManager::GetSignature("FName::Constructor");
+    FName::ConstructorInternal.assign_address(FNameConstructorAddress);
+    PS::Log<LogLevel::Verbose>(STR("FName::Constructor was assigned address of {}\n"), FNameConstructorAddress);
+
+    auto FNameToStringAddress = Palworld::SignatureManager::GetSignature("FName::ToString_Wchar");
+    FName::ToStringInternal.assign_address(FNameToStringAddress);
+    PS::Log<LogLevel::Verbose>(STR("FName::ToString was assigned address of {}\n"), FNameToStringAddress);
 
     ApplyMemberVariableLayout();
-    PS::Log<LogLevel::Verbose>(STR("MemberVariableLayout applied.\n"));
 
     UnrealInitializer::InitializeVersionedContainer();
     PS::Log<LogLevel::Verbose>(STR("Versioned Container initialized.\n"));
@@ -64,6 +58,8 @@ void Palworld::UnrealOffsets::Initialize()
 void Palworld::UnrealOffsets::InitializeGMalloc()
 {
     if (RC::Unreal::GMalloc) return;
+
+    PS::Log<LogLevel::Verbose>(STR("Initializing GMalloc...\n"));
 
     auto StartAddr = static_cast<uint8_t*>(Palworld::SignatureManager::GetSignature("FMemory::Free"));
     if (!StartAddr)
@@ -124,13 +120,15 @@ void Palworld::UnrealOffsets::InitializeGMalloc()
     int64_t DispValue = MemOp.disp.value;
     uint8_t* GMallocAddr = static_cast<uint8_t*>(NextInstructionAddr) + DispValue;
 
-    RC::Unreal::GMalloc = *std::bit_cast<RC::Unreal::FMalloc**>(GMallocAddr);
+    RC::Unreal::GMalloc = std::bit_cast<RC::Unreal::FMalloc**>(GMallocAddr);
 
     PS::Log<LogLevel::Verbose>(STR("Found GMalloc: {}\n"), static_cast<void*>(GMallocAddr));
 }
 
 void Palworld::UnrealOffsets::ApplyMemberVariableLayout()
 {
+    PS::Log<LogLevel::Verbose>(STR("Reading offsets from MemberVariableLayout.ini...\n"));
+
     auto MemberVariableLayoutFile = fs::path(UE4SSProgram::get_program().get_working_directory()) / "MemberVariableLayout.ini";
     if (fs::exists(MemberVariableLayoutFile))
     {
@@ -859,6 +857,30 @@ void Palworld::UnrealOffsets::ApplyMemberVariableLayout()
                 Unreal::FInterfaceProperty::MemberOffsets.emplace(STR("InterfaceClass"), static_cast<int32_t>(val));
             if (auto val = parser.get_int64(STR("FFieldPathProperty"), STR("PropertyClass"), -1); val != -1)
                 Unreal::FFieldPathProperty::MemberOffsets.emplace(STR("PropertyClass"), static_cast<int32_t>(val));
+            if (auto val = parser.get_int64(STR("UDataTable"), STR("RowStruct"), -1); val != -1)
+                Unreal::UDataTable::MemberOffsets.emplace(STR("RowStruct"), static_cast<int32_t>(val));
+            if (auto val = parser.get_int64(STR("UDataTable"), STR("RowMap"), -1); val != -1)
+                Unreal::UDataTable::MemberOffsets.emplace(STR("RowMap"), static_cast<int32_t>(val));
+            if (auto val = parser.get_int64(STR("UDataTable"), STR("bStripFromClientBuilds"), -1); val != -1)
+                Unreal::UDataTable::MemberOffsets.emplace(STR("bStripFromClientBuilds"), static_cast<int32_t>(val));
+            if (auto val = parser.get_int64(STR("UDataTable"), STR("bIgnoreExtraFields"), -1); val != -1)
+                Unreal::UDataTable::MemberOffsets.emplace(STR("bIgnoreExtraFields"), static_cast<int32_t>(val));
+            if (auto val = parser.get_int64(STR("UDataTable"), STR("bIgnoreMissingFields"), -1); val != -1)
+                Unreal::UDataTable::MemberOffsets.emplace(STR("bIgnoreMissingFields"), static_cast<int32_t>(val));
+            if (auto val = parser.get_int64(STR("UDataTable"), STR("ImportKeyField"), -1); val != -1)
+                Unreal::UDataTable::MemberOffsets.emplace(STR("ImportKeyField"), static_cast<int32_t>(val));
+            if (auto val = parser.get_int64(STR("UDataTable"), STR("bPreserveExistingValues"), -1); val != -1)
+                Unreal::UDataTable::MemberOffsets.emplace(STR("bPreserveExistingValues"), static_cast<int32_t>(val));
+
+            PS::Log<LogLevel::Verbose>(STR("Offsets from MemberVariableLayout.ini applied.\n"));
         }
+        else
+        {
+            PS::Log<LogLevel::Error>(STR("Failed to apply offsets from MemberVariableLayout.ini, something went wrong trying to read the file.\n"));
+        }
+    }
+    else
+    {
+        PS::Log<LogLevel::Error>(STR("Failed to apply offsets from MemberVariableLayout.ini, file doesn't exist.\n"));
     }
 }

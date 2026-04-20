@@ -1,4 +1,5 @@
 #include "Loader/PalEnumLoader.h"
+#include "Unreal/CoreUObject/UObject/Class.hpp"
 #include "Unreal/UEnum.hpp"
 #include "Unreal/UObjectGlobals.hpp"
 #include "Helpers/String.hpp"

@@ -1,31 +1,19 @@
 #include "Unreal/FProperty.hpp"
-#include "Unreal/Property/FArrayProperty.hpp"
-#include "Unreal/Property/FBoolProperty.hpp"
-#include "Unreal/Property/FNameProperty.hpp"
-#include "Unreal/Property/FNumericProperty.hpp"
 #include "Unreal/Property/FEnumProperty.hpp"
-#include "Unreal/Property/FMapProperty.hpp"
-#include "Unreal/Property/FStructProperty.hpp"
 #include "Unreal/Property/FStrProperty.hpp"
-#include "Unreal/Property/FClassProperty.hpp"
-#include "Unreal/Property/FSoftClassProperty.hpp"
-#include "Unreal/Property/FSoftObjectProperty.hpp"
 #include "Unreal/Property/FTextProperty.hpp"
-#include "Unreal/FString.hpp"
-#include "Unreal/NameTypes.hpp"
-#include "Unreal/UClass.hpp"
-#include "Unreal/UEnum.hpp"
-#include "Unreal/UScriptStruct.hpp"
+#include "Unreal/CoreUObject/UObject/UnrealType.hpp"
+#include "Unreal/CoreUObject/UObject/Class.hpp"
+#include "Helpers/Casting.hpp"
 #include "SDK/Classes/TSoftObjectPtr.h"
 #include "SDK/Classes/TSoftClassPtr.h"
 #include "SDK/Classes/KismetSystemLibrary.h"
 #include "SDK/Structs/Custom/FManagedValue.h"
 #include "SDK/Structs/Custom/FScriptMapHelper.h"
 #include "SDK/Structs/Custom/FScriptArrayHelper.h"
-#include "Utility/Logging.h"
 #include "SDK/Helper/PropertyHelper.h"
 #include "SDK/PalSignatures.h"
-#include "Helpers/Casting.hpp"
+#include "Utility/Logging.h"
 
 using namespace RC;
 using namespace RC::Unreal;
@@ -310,10 +298,23 @@ namespace Palworld {
     void PropertyHelper::SetSoftObjectPropertyValueFromJsonValue(void* Data, RC::Unreal::FSoftObjectProperty* Property, const nlohmann::json& Value)
     {
         ValidateJsonValueType(Property, Value);
+        const std::string resourcePrefix = "$resource/";
 
         auto ParsedValue = Value.get<std::string>();
-        auto String = RC::to_generic_string(ParsedValue);
-        auto SoftObjectPtr = UECustom::TSoftObjectPtr<UObject>(UECustom::FSoftObjectPath(String));
+
+        RC::StringType PackagePath = RC::to_generic_string(ParsedValue);
+
+        if (ParsedValue.starts_with(resourcePrefix))
+        {
+            // Before: "$resource/modname/resourcename"
+            // After:  "modname/resourcename"
+            PackagePath = PackagePath.erase(0, resourcePrefix.length());
+
+            // "/Engine/Transient.PalSchema/Resources/modname/resourcename"
+            PackagePath = std::format(TEXT("/Engine/Transient.PalSchema/Resources/{}"), PackagePath);
+        }
+
+        auto SoftObjectPtr = UECustom::TSoftObjectPtr<UObject>(UECustom::FSoftObjectPath(PackagePath));
         FMemory::Memcpy(Data, &SoftObjectPtr, sizeof(UECustom::TSoftObjectPtr<UObject>));
     }
 
@@ -506,7 +507,7 @@ namespace Palworld {
 
     std::string PropertyHelper::GetPropertyTypeAsUTF8String(FProperty* Property)
     {
-        auto PropertyType = RC::to_string(Property->GetCPPType().GetCharArray());
+        auto PropertyType = RC::to_string(*Property->GetCPPType());
         return PropertyType;
     }
 
@@ -526,14 +527,32 @@ namespace Palworld {
     RC::Unreal::FProperty* PropertyHelper::GetPropertyByName(RC::Unreal::UScriptStruct* Struct, const RC::StringType& PropertyName)
     {
         FProperty* Property = nullptr;
+        FName PropertyFName = FName(PropertyName, FNAME_Add);
         for (FProperty* It = Struct->GetPropertyLink(); It != nullptr; It = It->GetPropertyLinkNext())
         {
-            if (It->GetName() == PropertyName)
+            if (It->GetFName() == PropertyFName)
             {
                 Property = It;
             }
         }
         return Property;
+    }
+
+    void* PropertyHelper::GetValuePtrByPropertyNameInChain(RC::Unreal::UObject* Instance, const RC::StringType& PropertyName)
+    {
+        if (!Instance)
+        {
+            return nullptr;
+        }
+
+        RC::Unreal::FProperty* Property = PropertyHelper::GetPropertyByName(Instance->GetClassPrivate(), PropertyName);
+        if (!Property)
+        {
+            return nullptr;
+        }
+
+        auto ValuePtr = Property->ContainerPtrToValuePtr<void>(Instance);
+        return ValuePtr;
     }
 
     RC::Unreal::FFieldClass* PropertyHelper::FindFieldClassByName(const RC::Unreal::FName& Name)
