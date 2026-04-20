@@ -1,0 +1,211 @@
+local DataTable = require("DataTable")
+local Parser = require("DataTableParser")
+local Utils = require("utils")
+
+
+local function Log(message, funcName)
+    Utils.Log(message, "PlayerPlaneDataTable", funcName)
+end
+
+local PlayerPlaneDataTable = setmetatable({}, {__index = DataTable})
+PlayerPlaneDataTable.__index = PlayerPlaneDataTable
+
+function PlayerPlaneDataTable.new(dataTable)
+    local self = DataTable.new(dataTable)
+    setmetatable(self, PlayerPlaneDataTable)
+    return self
+end
+
+---@param data FInventoryDangly
+function PlayerPlaneDataTable:ParseRowData(data)
+    local lib = self.__kismetlib
+    return {
+        PlaneID = Parser.ToJson(data.PlaneID, lib),
+		OriginalPlaneID = Parser.ToJson(data.OriginalPlaneID, lib),
+		PlaneStringID = Parser.ToJson(data.PlaneStringID, lib),
+		TargetMode = Parser.ToJsonEPlaneTargetMode(data.TargetMode),
+		Reference = Parser.ToJson(data.Reference, lib),
+		Category = Parser.ToJsonEPlaneCategory(data.Category),
+		HangarSize = Parser.ToJsonEPlaneHangarSize(data.HangarSize),
+		IGCSize = Parser.ToJsonEPlaneIGCSize(data.IGCSize),
+		GunCaliber = Parser.ToJsonEGunCaliber(data.GunCaliber),
+		GunLoadCount = Parser.ToJson(data.GunLoadCount, lib),
+		MainWeaponLoadCount = Parser.ToJson(data.MainWeaponLoadCount, lib),
+		SpWeaponID1 = Parser.ToJson(data.SpWeaponID1, lib),
+		SpWeaponLoadCount1 = Parser.ToJson(data.SpWeaponLoadCount1, lib),
+		SpWeaponID2 = Parser.ToJson(data.SpWeaponID2, lib),
+		SpWeaponLoadCount2 = Parser.ToJson(data.SpWeaponLoadCount2, lib),
+		SpWeaponID3 = Parser.ToJson(data.SpWeaponID3, lib),
+		SpWeaponLoadCount3 = Parser.ToJson(data.SpWeaponLoadCount3, lib),
+		FlareLoadCount = Parser.ToJson(data.FlareLoadCount, lib),
+		FlareEffectiveRange_MP = Parser.ToJson(data.FlareEffectiveRange_MP, lib),
+		HangarAcquireCamera = Parser.ToJson(data.HangarAcquireCamera, lib),
+		SortNumber = Parser.ToJson(data.SortNumber, lib),
+		AlphabeticalSortNumber = Parser.ToJson(data.AlphabeticalSortNumber, lib),
+        GraphAirToAir = Parser.ToJson(data.GraphAirToAir, lib),
+        GraphAirToGround = Parser.ToJson(data.GraphAirToGround, lib),
+        GraphSpeed = Parser.ToJson(data.GraphSpeed, lib),
+        GraphMobirity = Parser.ToJson(data.GraphMobirity, lib),
+        GraphStability = Parser.ToJson(data.GraphStability, lib),
+        GraphDefense = Parser.ToJson(data.GraphDefense, lib),
+        PartsSlotBody = Parser.ToJson(data.PartsSlotBody, lib),
+        PartsSlotArms = Parser.ToJson(data.PartsSlotArms, lib),
+        PartsSlotMisc = Parser.ToJson(data.PartsSlotMisc, lib),
+        StealthLevel = Parser.ToJson(data.StealthLevel, lib),
+        MaxHealth = Parser.ToJson(data.MaxHealth, lib),
+        AircraftCost = Parser.ToJson(data.AircraftCost, lib),
+        CanopyEffectChangeDuration_MP = Parser.ToJson(data.CanopyEffectChangeDuration_MP, lib),
+        CanopyIceAppearDuration_MP = Parser.ToJson(data.CanopyIceAppearDuration_MP, lib),
+        CanopyIceChangeDuration_MP = Parser.ToJson(data.CanopyIceChangeDuration_MP, lib),
+        CanopyEffectDecayMultiplier_MP = Parser.ToJson(data.CanopyEffectDecayMultiplier_MP, lib),
+        IceTriggerCloudDensity_MP = Parser.ToJson(data.IceTriggerCloudDensity_MP, lib),
+        AirCurrentPositionInfluenceModifier_MP = Parser.ToJson(data.AirCurrentPositionInfluenceModifier_MP, lib),
+        AirCurrentRotationInfluenceModifier_MP = Parser.ToJson(data.AirCurrentRotationInfluenceModifier_MP, lib),
+        InAirCurrentMovementDegradePercent_MP = Parser.ToJson(data.InAirCurrentMovementDegradePercent_MP, lib),
+        AirCurrentStrengthThreshold_MP = Parser.ToJson(data.AirCurrentStrengthThreshold_MP, lib),
+        InCloudMovementDegradePercent_MP = Parser.ToJson(data.InCloudMovementDegradePercent_MP, lib),
+        InCloudMovementDegradeDuration_MP = Parser.ToJson(data.InCloudMovementDegradeDuration_MP, lib),
+        InCloudStallSpeed_MP = Parser.ToJson(data.InCloudStallSpeed_MP, lib),
+        InCloudBuffetSpeed_MP = Parser.ToJson(data.InCloudBuffetSpeed_MP, lib),
+        CloudEnterDensity_MP = Parser.ToJson(data.CloudEnterDensity_MP, lib),
+        CloudExitDensity_MP = Parser.ToJson(data.CloudExitDensity_MP, lib),
+		RefPlaneImagePortrait = Parser.ToJson(data.RefPlaneImagePortrait, lib),
+		RefPlaneImageLandscape = Parser.ToJson(data.RefPlaneImageLandscape, lib),
+		BeginAerialRefuelling = Parser.ToJson(data.BeginAerialRefuelling, lib),
+		BeginAerialRefuelling = Parser.ToJson(data.BeginAerialRefuelling, lib),
+		BeginAerialRefuelling = Parser.ToJson(data.BeginAerialRefuelling, lib),
+		BeginLanding = Parser.ToJson(data.BeginLanding, lib),
+		BeginLanding = Parser.ToJson(data.BeginLanding, lib),
+		BeginLanding = Parser.ToJson(data.BeginLanding, lib),
+		BeginTakeoffA = Parser.ToJson(data.BeginTakeoffA, lib),
+		BeginTakeoffA = Parser.ToJson(data.BeginTakeoffA, lib),
+		BeginTakeoffA = Parser.ToJson(data.BeginTakeoffA, lib),
+		BeginTakeoffB = Parser.ToJson(data.BeginTakeoffB, lib),
+		BeginTakeoffB = Parser.ToJson(data.BeginTakeoffB, lib),
+		BeginTakeoffB = Parser.ToJson(data.BeginTakeoffB, lib),
+		BeginTakeoffC = Parser.ToJson(data.BeginTakeoffC, lib),
+		BeginTakeoffC = Parser.ToJson(data.BeginTakeoffC, lib),
+		BeginTakeoffC = Parser.ToJson(data.BeginTakeoffC, lib),
+		BeginTakeoffNavyA = Parser.ToJson(data.BeginTakeoffNavyA, lib),
+		BeginTakeoffNavyA = Parser.ToJson(data.BeginTakeoffNavyA, lib),
+		BeginTakeoffNavyA = Parser.ToJson(data.BeginTakeoffNavyA, lib),
+		BeginTakeoffNavyB = Parser.ToJson(data.BeginTakeoffNavyB, lib),
+		BeginTakeoffNavyB = Parser.ToJson(data.BeginTakeoffNavyB, lib),
+		BeginTakeoffNavyB = Parser.ToJson(data.BeginTakeoffNavyB, lib),
+		BeginTakeoffNavyC = Parser.ToJson(data.BeginTakeoffNavyC, lib),
+		BeginTakeoffNavyC = Parser.ToJson(data.BeginTakeoffNavyC, lib),
+		BeginTakeoffNavyC = Parser.ToJson(data.BeginTakeoffNavyC, lib),
+		EndAerialRefuelling = Parser.ToJson(data.EndAerialRefuelling, lib),
+		EndAerialRefuelling = Parser.ToJson(data.EndAerialRefuelling, lib),
+		EndAerialRefuelling = Parser.ToJson(data.EndAerialRefuelling, lib),
+		EndTakeOff = Parser.ToJson(data.EndTakeOff, lib),
+		EndTakeOff = Parser.ToJson(data.EndTakeOff, lib),
+		EndTakeOff = Parser.ToJson(data.EndTakeOff, lib),
+		WeaponChange = Parser.ToJson(data.WeaponChange, lib),
+		WeaponChange = Parser.ToJson(data.WeaponChange, lib),
+		WeaponChange = Parser.ToJson(data.WeaponChange, lib),
+		IsUnlockAircraftTree = Parser.ToJson(data.IsUnlockAircraftTree, lib),
+		DLCID = Parser.ToJson(data.DLCID, lib)
+    }
+end
+
+function PlayerPlaneDataTable:AddRow(name, data)
+    ---@class FInventoryDangly
+    local rowData = {
+		PlaneID = data["PlaneID"],
+		OriginalPlaneID = data["OriginalPlaneID"],
+		PlaneStringID = data["PlaneStringID"],
+		TargetMode = Parser.EPlaneTargetMode[data["TargetMode"]],
+		Reference = data["Reference"],
+		Category = Parser.EPlaneCategory[data["Category"]],
+		HangarSize = Parser.EPlaneHangarSize[data["HangarSize"]],
+		IGCSize = Parser.EPlaneIGCSize[data["IGCSize"]],
+		GunCaliber = Parser.EGunCaliber[data["GunCaliber"]],
+		GunLoadCount = data["GunLoadCount"],
+		MainWeaponLoadCount = data["MainWeaponLoadCount"],
+		SpWeaponID1 = data["SpWeaponID1"],
+		SpWeaponLoadCount1 = data["SpWeaponLoadCount1"],
+		SpWeaponID2 = data["SpWeaponID2"],
+		SpWeaponLoadCount2 = data["SpWeaponLoadCount2"],
+		SpWeaponID3 = data["SpWeaponID3"],
+		SpWeaponLoadCount3 = data["SpWeaponLoadCount3"],
+		FlareLoadCount = data["FlareLoadCount"],
+		FlareEffectiveRange_MP = data["FlareEffectiveRange_MP"],
+		HangarAcquireCamera = data["HangarAcquireCamera"],
+		SortNumber = data["SortNumber"],
+		AlphabeticalSortNumber = data["AlphabeticalSortNumber"],
+        GraphAirToAir = data["GraphAirToAir"],
+        GraphAirToGround = data["GraphAirToGround"],
+        GraphSpeed = data["GraphSpeed"],
+        GraphMobirity = data["GraphMobirity"],
+        GraphStability = data["GraphStability"],
+        GraphDefense = data["GraphDefense"],
+        PartsSlotBody = data["PartsSlotBody"],
+        PartsSlotArms = data["PartsSlotArms"],
+        PartsSlotMisc = data["PartsSlotMisc"],
+        StealthLevel = data["StealthLevel"],
+        MaxHealth = data["MaxHealth"],
+        AircraftCost = data["ircraftCost"],
+        CanopyEffectChangeDuration_MP = data["CanopyEffectChangeDuration_MP"],
+        CanopyIceAppearDuration_MP = data["CanopyIceAppearDuration_MP"],
+        CanopyIceChangeDuration_MP = data["CanopyIceChangeDuration_MP"],
+        CanopyEffectDecayMultiplier_MP = data["CanopyEffectDecayMultiplier_MP"],
+        IceTriggerCloudDensity_MP = data["IceTriggerCloudDensity_MP"],
+        AirCurrentPositionInfluenceModifier_MP = data["AirCurrentPositionInfluenceModifier_MP"],
+        AirCurrentRotationInfluenceModifier_MP = data["AirCurrentRotationInfluenceModifier_MP"],
+        InAirCurrentMovementDegradePercent_MP = data["InAirCurrentMovementDegradePercent_MP"],
+        AirCurrentStrengthThreshold_MP = data["AirCurrentStrengthThreshold_MP"],
+        InCloudMovementDegradePercent_MP = data["InCloudMovementDegradePercent_MP"],
+        InCloudMovementDegradeDuration_MP = data["nCloudMovementDegradeDuration_MP"],
+        InCloudStallSpeed_MP = data["InCloudStallSpeed_MP"],
+        InCloudBuffetSpeed_MP = data["InCloudBuffetSpeed_MP"],
+        CloudEnterDensity_MP = data["loudEnterDensity_MP"],
+        CloudExitDensity_MP = data["CloudExitDensity_MP"],
+		RefPlaneImagePortrait = data["RefPlaneImagePortrait"],
+		RefPlaneImageLandscape = data["RefPlaneImageLandscape"],
+		BeginAerialRefuelling = data["BeginAerialRefuelling"],
+		BeginAerialRefuelling = data["BeginAerialRefuelling"],
+		BeginAerialRefuelling = data["BeginAerialRefuelling"],
+		BeginLanding = data["BeginLanding"],
+		BeginLanding = data["BeginLanding"],
+		BeginLanding = data["BeginLanding"],
+		BeginTakeoffA = data["BeginTakeoffA"],
+		BeginTakeoffA = data["BeginTakeoffA"],
+		BeginTakeoffA = data["BeginTakeoffA"],
+		BeginTakeoffB = data["BeginTakeoffB"],
+		BeginTakeoffB = data["BeginTakeoffB"],
+		BeginTakeoffB = data["BeginTakeoffB"],
+		BeginTakeoffC = data["BeginTakeoffC"],
+		BeginTakeoffC = data["BeginTakeoffC"],
+		BeginTakeoffC = data["BeginTakeoffC"],
+		BeginTakeoffNavyA = data["BeginTakeoffNavyA"],
+		BeginTakeoffNavyA = data["BeginTakeoffNavyA"],
+		BeginTakeoffNavyA = data["BeginTakeoffNavyA"],
+		BeginTakeoffNavyB = data["BeginTakeoffNavyB"],
+		BeginTakeoffNavyB = data["BeginTakeoffNavyB"],
+		BeginTakeoffNavyB = data["BeginTakeoffNavyB"],
+		BeginTakeoffNavyC = data["BeginTakeoffNavyC"],
+		BeginTakeoffNavyC = data["BeginTakeoffNavyC"],
+		BeginTakeoffNavyC = data["BeginTakeoffNavyC"],
+		EndAerialRefuelling = data["EndAerialRefuelling"],
+		EndAerialRefuelling = data["EndAerialRefuelling"],
+		EndAerialRefuelling = data["EndAerialRefuelling"],
+		EndTakeOff = data["EndTakeOff"],
+		EndTakeOff = data["EndTakeOff"],
+		EndTakeOff = data["EndTakeOff"],
+		WeaponChange = data["WeaponChange"],
+		WeaponChange = data["WeaponChange"],
+		WeaponChange = data["WeaponChange"],
+		IsUnlockAircraftTree = data["IsUnlockAircraftTree"],
+		DLCID = data["DLCID"]
+    }
+
+    local success = pcall(function() AddDataTableRow("PlayerPlaneDataTable", name, rowData) end)
+    if not success then
+        Log(string.format("Failed to add row %s\n", name), "AddRow")
+    else
+        Log(string.format("Added row %s\n", name), "AddRow")
+    end
+end
+
+return PlayerPlaneDataTable
