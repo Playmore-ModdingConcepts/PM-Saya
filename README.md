@@ -3,9 +3,6 @@
 (<a href="https://cdn.imgchest.com/files/92e074f9c92e.png">"Non-weeb" logo version</a>)
 </p>
 
-Playmore SAYA Module - Based on Palschema(*0.4.2 hybrid) and TFW-Workbench(0.3.0)
+Playmore SAYA Module (Revision 2) - Based on TFW-Workbench(0.3.0)
 
-*Links to be updated at a later point
-
-PalSchema's documentation : https://github.com/Okaetsu/PalSchema</br>
 TFW-Workbench's documentation : https://github.com/smotti/TFWWorkbench
